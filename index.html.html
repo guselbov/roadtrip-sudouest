@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Road Trip Sud-Ouest 🌊</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --blue: #378ADD; --blue-dark: #185fa5; --blue-light: #e6f1fb;
+  --green: #1D9E75; --green-light: #eaf3de;
+  --orange: #BA7517; --orange-light: #faedda;
+  --pink: #D4537E; --pink-light: #fbeaf0;
+  --red: #E24B4A; --grey: #f5f4f0; --border: #e8e8e8;
+  --text: #1a1a1a; --muted: #666;
+}
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--grey); color: var(--text); font-size: 13px; }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 10000; }
+.modal-overlay.show { display: flex; }
+.modal-box { background: #fff; border-radius: 14px; padding: 26px 22px; width: 90%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+.modal-box h2 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.modal-box p { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+.modal-input { width: 100%; padding: 9px 11px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; margin-bottom: 9px; font-family: inherit; }
+.modal-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(55,138,221,.12); }
+.modal-error { color: var(--red); font-size: 11px; margin-bottom: 8px; display: none; }
+.modal-error.show { display: block; }
+.modal-btns { display: flex; gap: 8px; }
+.btn { padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; }
+.btn-primary { background: var(--blue); color: #fff; flex: 1; }
+.btn-primary:hover { background: var(--blue-dark); }
+.btn-secondary { background: var(--grey); color: var(--muted); }
+.btn-secondary:hover { background: #eee; }
+.btn-danger { background: #fff2f2; color: var(--red); border: 1px solid #fdd; flex: 1; }
+.btn-danger:hover { background: #fdd; }
+
+header { background: #fff; border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; position: sticky; top: 0; z-index: 900; }
+.header-left h1 { font-size: 16px; font-weight: 700; }
+.header-left p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.header-badges { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; margin-left: auto; }
+.badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+.badge-surf { background: var(--blue-light); color: var(--blue-dark); border: 1px solid #b5d4f4; }
+.badge-fete { background: var(--orange-light); color: #854f0b; border: 1px solid #fac775; }
+.badge-dispos { background: #f1effe; color: #534ab7; border: 1px solid #afa9ec; cursor: pointer; }
+.badge-dispos:hover { background: #e6e1fc; }
+.badge-pending { background: #fff3cd; color: #856404; border: 1px solid #ffe69c; cursor: pointer; }
+.badge-pending:hover { background: #ffe69c; }
+
+.view-toggle { display: flex; background: var(--grey); border-radius: 8px; padding: 3px; border: 1px solid var(--border); }
+.view-btn { padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; background: none; color: var(--muted); font-family: inherit; }
+.view-btn.active { background: #fff; color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+
+.sync-bar { background: #fff; border-bottom: 1px solid var(--border); padding: 5px 16px; font-size: 11px; color: #999; display: flex; align-items: center; gap: 6px; }
+.sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #1D9E75; }
+.sync-dot.loading { background: #BA7517; animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.etapes-bar { background: #fff; border-bottom: 1px solid var(--border); padding: 8px 16px; display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+.etapes-bar .bar-label { font-size: 11px; color: #aaa; margin-right: 2px; }
+.etape-btn { font-size: 12px; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); background: #fff; cursor: pointer; font-family: inherit; }
+.etape-btn:hover { background: var(--blue-light); border-color: var(--blue); color: var(--blue-dark); }
+.etape-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+.admin-bar { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 8px 20px; display: none; align-items: center; gap: 12px; flex-wrap: wrap; }
+.admin-bar.show { display: flex; }
+.admin-bar span { color: #aaa; font-size: 11px; }
+.admin-tag { background: rgba(55,138,221,.2); color: #7ab9f0; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(55,138,221,.3); }
+.admin-btn { font-size: 11px; padding: 4px 10px; border-radius: 6px; cursor: pointer; border: none; font-family: inherit; font-weight: 600; }
+.admin-btn-add { background: rgba(29,158,117,.2); color: #3ecfa0; border: 1px solid rgba(29,158,117,.3); }
+.admin-btn-add:hover { background: rgba(29,158,117,.35); }
+.admin-btn-logout { background: rgba(255,255,255,.08); color: #aaa; border: 1px solid rgba(255,255,255,.12); margin-left: auto; }
+.admin-btn-logout:hover { background: rgba(255,255,255,.15); color: #fff; }
+
+.main { display: grid; grid-template-columns: 1fr 350px; min-height: calc(100vh - 130px); }
+#map { width: 100%; height: calc(100vh - 130px); min-height: 400px; }
+.sidebar { background: #fff; border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; max-height: calc(100vh - 130px); }
+.sidebar-section { padding: 16px; border-bottom: 1px solid #eee; }
+.section-title { font-size: 11px; font-weight: 700; color: #444; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+.section-title .count-pill { font-size: 10px; background: #eee; color: #666; padding: 1px 7px; border-radius: 10px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+
+.planning { display: flex; flex-direction: column; gap: 3px; }
+.plan-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: 8px; font-size: 12px; }
+.plan-item.surf { background: var(--blue-light); } .plan-item.fete { background: var(--orange-light); }
+.plan-item.pote { background: var(--green-light); } .plan-item.libre { background: var(--grey); }
+.plan-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.plan-info { flex: 1; }
+.plan-ville { font-weight: 600; }
+.plan-detail { color: var(--muted); margin-top: 1px; font-size: 11px; }
+.plan-note { color: #999; font-style: italic; margin-top: 2px; font-size: 11px; }
+.plan-dates { font-size: 11px; color: var(--blue-dark); font-weight: 600; margin-top: 2px; }
+.plan-actions { display: flex; gap: 4px; margin-left: auto; }
+.plan-btn { font-size: 11px; padding: 2px 8px; border-radius: 5px; cursor: pointer; border: none; font-family: inherit; font-weight: 500; }
+.plan-btn-edit { background: #eee; color: #444; } .plan-btn-edit:hover { background: var(--blue-light); color: var(--blue-dark); }
+.plan-btn-del { background: #fff2f2; color: var(--red); } .plan-btn-del:hover { background: #fdd; }
+
+.form-group { display: flex; flex-direction: column; gap: 3px; margin-bottom: 9px; }
+.form-group label { font-size: 11px; color: var(--muted); font-weight: 600; }
+.form-group input, .form-group select { padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12px; outline: none; font-family: inherit; }
+.form-group input:focus, .form-group select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(55,138,221,.1); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.btn-submit { width: 100%; padding: 10px; background: var(--blue); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 4px; font-family: inherit; }
+.btn-submit:hover { background: var(--blue-dark); }
+.btn-submit.green { background: var(--green); } .btn-submit.green:hover { background: #167a5b; }
+.btn-submit:disabled { background: #aaa; cursor: not-allowed; }
+
+.dispo-list { display: flex; flex-direction: column; gap: 6px; }
+.dispo-item { border-radius: 8px; padding: 9px 10px; display: flex; gap: 8px; align-items: flex-start; font-size: 12px; }
+.dispo-item.green-bg { background: var(--green-light); border: 1px solid #c0dd97; }
+.dispo-item.pink-bg { background: var(--pink-light); border: 1px solid #f4c0d1; }
+.dispo-item.blue-bg { background: var(--blue-light); border: 1px solid #b5d4f4; }
+.dispo-item.orange-bg { background: var(--orange-light); border: 1px solid #fac775; }
+.dispo-item.pending-bg { background: #fff8e6; border: 1px dashed #e6c875; }
+.dispo-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.dispo-name { font-weight: 600; }
+.dispo-detail { color: #555; margin-top: 1px; font-size: 11px; line-height: 1.5; }
+.dispo-status { font-size: 10px; font-weight: 700; margin-top: 3px; }
+.dispo-status.pending { color: #856404; }
+.dispo-delete { background: none; border: none; cursor: pointer; color: #ccc; margin-left: auto; font-size: 16px; line-height: 1; flex-shrink: 0; }
+.dispo-delete:hover { color: var(--red); }
+.dispo-validate-btns { display: flex; flex-direction: column; gap: 3px; margin-left: auto; }
+.vbtn { font-size: 10px; padding: 2px 7px; border-radius: 5px; cursor: pointer; border: none; font-family: inherit; font-weight: 600; white-space: nowrap; }
+.vbtn-ok { background: #d4f0c2; color: #2a5c0e; } .vbtn-ok:hover { background: #b8e89c; }
+.vbtn-no { background: #fdd; color: #a32d2d; } .vbtn-no:hover { background: #fbb; }
+.empty-state { font-size: 12px; color: #aaa; font-style: italic; text-align: center; padding: 16px 0; }
+
+.legend { display: flex; flex-direction: column; gap: 5px; }
+.leg-item { display: flex; align-items: center; gap: 7px; font-size: 11px; color: #555; }
+.leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+.info-box { background: linear-gradient(135deg, var(--blue-light) 0%, #f0f7ff 100%); border: 1px solid #b5d4f4; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; font-size: 12px; color: #2a5a8a; line-height: 1.6; }
+.info-box strong { display: block; margin-bottom: 3px; font-size: 13px; }
+.slot-taken { background: #fff3f3; border: 1px solid #fcc; border-radius: 7px; padding: 6px 9px; font-size: 11px; color: #c44; margin-top: 6px; display: none; }
+.slot-taken.visible { display: block; }
+
+#toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 24px; font-size: 12px; font-weight: 500; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,.3); }
+#toast.show { opacity: 1; } #toast.success { background: #1D9E75; } #toast.error { background: var(--red); }
+
+.dispo-group-title { font-size: 10px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: .5px; margin: 10px 0 5px; }
+.sidebar::-webkit-scrollbar { width: 5px; }
+.sidebar::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
+
+.popup-ville { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+.popup-info { font-size: 11px; color: #555; line-height: 1.5; }
+.popup-btn { display: inline-block; margin-top: 8px; padding: 5px 10px; background: var(--blue); color: #fff; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+.tab { font-size: 11px; padding: 4px 10px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); background: #fff; font-family: inherit; font-weight: 600; color: var(--muted); }
+.tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+@media (max-width: 700px) {
+  .main { grid-template-columns: 1fr; }
+  #map { height: 280px; min-height: 280px; }
+  .sidebar { max-height: none; border-left: none; border-top: 1px solid #eee; }
+  .form-row { grid-template-columns: 1fr; }
+  header { gap: 8px; }
+  .view-toggle { order: 3; width: 100%; }
+  .header-badges { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>🌊 Road Trip Sud-Ouest</h1>
+    <p id="trip-subtitle">8 juillet (soir) → 20 juillet 2026 · Bordeaux aller-retour</p>
+  </div>
+  <div class="header-badges">
+    <div class="badge badge-surf">🏄 Surf</div>
+    <div class="badge badge-fete">🎉 Fêtes de Bayonne 15-19 juil.</div>
+    <div class="badge badge-dispos" id="badge-dispos" onclick="scrollToDispos()">0 dispo</div>
+  </div>
+  <div class="view-toggle">
+    <button class="view-btn active" id="btn-friend" onclick="setView('friend')">👥 Mes potes</button>
+    <button class="view-btn" id="btn-admin" onclick="tryAdmin()">🔐 Admin</button>
+  </div>
+</header>
+
+<div class="sync-bar">
+  <div class="sync-dot" id="sync-dot"></div>
+  <span id="sync-text">Connecté au Google Sheet</span>
+</div>
+
+<div class="admin-bar" id="admin-bar">
+  <span class="admin-tag">⚙️ Mode Admin</span>
+  <span>Gère tes étapes et valide les dispos de tes potes</span>
+  <button class="admin-btn admin-btn-add" onclick="showAddEtapeModal()">+ Nouvelle étape</button>
+  <button class="admin-btn admin-btn-logout" onclick="logoutAdmin()">Déconnexion</button>
+</div>
+
+<div class="etapes-bar" id="etapes-bar">
+  <span class="bar-label">Zoom :</span>
+</div>
+
+<div class="main">
+  <div id="map"></div>
+  <div class="sidebar" id="sidebar"></div>
+</div>
+
+<div id="toast"></div>
+
+<div class="modal-overlay" id="modal-login">
+  <div class="modal-box">
+    <h2>🔐 Accès admin</h2>
+    <p>Entre le mot de passe pour gérer le road trip.</p>
+    <input class="modal-input" type="password" id="pwd-input" placeholder="Mot de passe" onkeydown="if(event.key==='Enter') checkPwd()"/>
+    <div class="modal-error" id="pwd-error">Mot de passe incorrect.</div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="closeModal('modal-login')">Annuler</button>
+      <button class="btn btn-primary" onclick="checkPwd()">Connexion</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-etape">
+  <div class="modal-box" style="max-width:440px">
+    <h2 id="modal-etape-title">➕ Nouvelle étape</h2>
+    <p>Ajoute ou modifie une étape du road trip.</p>
+    <input class="modal-input" id="e-id" placeholder="Identifiant court (ex: hossegor)" style="font-family:monospace"/>
+    <input class="modal-input" id="e-label" placeholder="Nom affiché (ex: Hossegor / Capbreton)"/>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <input class="modal-input" id="e-lat" placeholder="Latitude" style="margin:0"/>
+      <input class="modal-input" id="e-lng" placeholder="Longitude" style="margin:0"/>
+    </div>
+    <select class="modal-input" id="e-type">
+      <option value="surf">🏄 Surf (caisse)</option>
+      <option value="pote">🏠 Chez un pote</option>
+      <option value="fete">🎉 Fête</option>
+      <option value="depart">🔴 Départ / Retour</option>
+    </select>
+    <input class="modal-input" id="e-surf" placeholder="Spots de surf (ex: Estagnots, Santocha)"/>
+    <input class="modal-input" id="e-dodo" placeholder="Logement / nuit"/>
+    <input class="modal-input" id="e-info" placeholder="Info pratique"/>
+    <input class="modal-input" id="e-dates" placeholder="Dates indicatives (ex: 9→11 juil.)"/>
+    <div class="modal-error" id="etape-error">Remplis au moins id, nom, lat et lng.</div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="closeModal('modal-etape')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveEtape()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal-box">
+    <h2 id="confirm-title">Confirmer ?</h2>
+    <p id="confirm-msg"></p>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="closeModal('modal-confirm')">Annuler</button>
+      <button class="btn btn-danger" id="confirm-ok">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ════════════════════════════════════════════════
+// CONFIG — colle ton URL Apps Script ici
+// ════════════════════════════════════════════════
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbywdPQleOeH8u-L9ecVZnXP3CgDf2Hq2UPTqXVQpXsg1OeSamdLwxjCoxtHlTc42CFiog/exec';
+const ADMIN_PWD = 'sudouest2026';
+const POLL_INTERVAL = 8000; // ms
+
+// ─── STATE ───
+let STAGES = {};
+let dispos = []; // {id, nom, ville, date, msg, status, timestamp}
+let isAdmin = false;
+let currentView = 'friend';
+let editingEtapeId = null;
+let mapMarkers = {};
+let polylineLayer = null;
+let poteMarkers = {};
+let poteCount = {};
+let dispoTab = 'approved'; // for friend view: approved | pending(admin only)
+
+// ─── API HELPERS ───
+async function apiGet(action) {
+  const res = await fetch(`${SCRIPT_URL}?action=${action}`);
+  if (!res.ok) throw new Error('Erreur réseau');
+  return res.json();
+}
+async function apiPost(payload) {
+  const res = await fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' }, // avoids CORS preflight on Apps Script
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+function setSyncStatus(loading, text) {
+  document.getElementById('sync-dot').classList.toggle('loading', loading);
+  if (text) document.getElementById('sync-text').textContent = text;
+}
+
+async function loadEtapes() {
+  const raw = await apiGet('getEtapes');
+  const obj = {};
+  raw.forEach(r => {
+    obj[r.id] = {
+      lat: parseFloat(r.lat), lng: parseFloat(r.lng), label: r.label,
+      type: r.type, color: r.color || '#378ADD',
+      surf: r.surf || '—', dodo: r.dodo || '—', info: r.info || '', dates: r.dates || ''
+    };
+  });
+  STAGES = obj;
+}
+
+async function loadDispos() {
+  const raw = await apiGet('getDispos');
+  dispos = raw.map(r => ({
+    id: String(r.id), nom: r.nom, ville: r.ville, date: r.date,
+    msg: r.msg || '', status: r.status || 'pending', timestamp: r.timestamp
+  }));
+}
+
+async function fullSync(showLoading=true) {
+  if (showLoading) setSyncStatus(true, 'Synchronisation...');
+  try {
+    await Promise.all([loadEtapes(), loadDispos()]);
+    setSyncStatus(false, 'Connecté au Google Sheet');
+    renderEtapesBar();
+    renderMap();
+    refreshPoteMarkers();
+    renderSidebar();
+    updateBadge();
+  } catch (err) {
+    setSyncStatus(false, '⚠️ Erreur de connexion au Sheet');
+    console.error(err);
+  }
+}
+
+// ─── MAP SETUP ───
+const map = L.map('map').setView([43.95, -1.1], 8);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 18 }).addTo(map);
+
+function makeIcon(color, size=14) {
+  return L.divIcon({ className:'', html:`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>`, iconAnchor:[size/2,size/2], popupAnchor:[0,-size/2] });
+}
+
+function renderMap() {
+  Object.values(mapMarkers).forEach(m => map.removeLayer(m));
+  mapMarkers = {};
+  if (polylineLayer) { map.removeLayer(polylineLayer); polylineLayer = null; }
+  const order = Object.keys(STAGES);
+  if (!order.length) return;
+  const coordsLine = order.map(id => [STAGES[id].lat, STAGES[id].lng]);
+  if (order.length > 1) coordsLine.push(coordsLine[0]);
+  polylineLayer = L.polyline(coordsLine, { color:'#378ADD', weight:2.5, dashArray:'8 5', opacity:0.55 }).addTo(map);
+  Object.entries(STAGES).forEach(([id, s]) => {
+    const size = (s.type==='depart' || s.type==='fete') ? 16 : 13;
+    const emoji = s.type==='pote' ? '🏠 ' : s.type==='fete' ? '🎉 ' : s.type==='surf' ? '🏄 ' : '📍 ';
+    const m = L.marker([s.lat, s.lng], { icon: makeIcon(s.color || '#378ADD', size) })
+      .addTo(map)
+      .bindPopup(`
+        <div class="popup-ville">${emoji}${s.label}</div>
+        <div class="popup-info">
+          ${s.dates ? `<div style="color:#534ab7;font-weight:600;margin-bottom:3px">📅 ${s.dates}</div>` : ''}
+          ${s.surf && s.surf !== '—' ? `<div style="color:#185fa5">🏄 ${s.surf}</div>` : ''}
+          <div style="color:#27500a">🚗 ${s.dodo}</div>
+          <div style="color:#999;margin-top:3px;font-size:10px">${s.info}</div>
+        </div>
+        <button class="popup-btn" onclick="selectVille('${id}')">Sélectionner cette étape</button>
+      `, { maxWidth: 230 })
+      .bindTooltip(s.label, { direction:'top', offset:[0,-8] });
+    mapMarkers[id] = m;
+  });
+}
+
+function selectVille(id) {
+  const selEl = document.getElementById('inp-ville');
+  if (selEl) selEl.value = id;
+  checkSlotAvailability();
+  map.closePopup();
+}
+
+function zoomVille(id, e) {
+  const s = STAGES[id]; if (!s) return;
+  map.setView([s.lat, s.lng], 12);
+  document.querySelectorAll('.etape-btn').forEach(b => b.classList.remove('active'));
+  if (e && e.currentTarget) e.currentTarget.classList.add('active');
+  const selEl = document.getElementById('inp-ville');
+  if (selEl) selEl.value = id;
+  checkSlotAvailability();
+}
+
+function clearPoteMarkers() { Object.values(poteMarkers).forEach(m => map.removeLayer(m)); poteMarkers = {}; poteCount = {}; }
+
+function addPoteMarker(d) {
+  const s = STAGES[d.ville]; if (!s) return;
+  poteCount[d.ville] = (poteCount[d.ville] || 0);
+  const off = poteCount[d.ville] * 0.013;
+  poteCount[d.ville]++;
+  const avatarColor = s.type === 'pote' ? '#D4537E' : s.color || '#1D9E75';
+  const m = L.marker([s.lat + off + 0.012, s.lng + off + 0.016], {
+    icon: L.divIcon({ className:'', html:`<div style="width:30px;height:30px;border-radius:50%;background:${avatarColor};border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${d.nom[0].toUpperCase()}</div>`, iconAnchor:[15,15], popupAnchor:[0,-15] })
+  }).addTo(map).bindPopup(`<b>${escHtml(d.nom)}</b><br>📍 ${s.label}<br>📅 ${formatDate(d.date)}${d.msg ? '<br><i style="color:#888">💬 ' + escHtml(d.msg) + '</i>' : ''}`);
+  poteMarkers[d.id] = m;
+}
+
+function refreshPoteMarkers() {
+  clearPoteMarkers();
+  dispos.filter(d => d.status === 'approved').forEach(d => addPoteMarker(d));
+}
+
+// ─── ETAPES BAR ───
+function renderEtapesBar() {
+  const bar = document.getElementById('etapes-bar');
+  const typeEmoji = { surf:'🏄', pote:'🏠', fete:'🎉', depart:'📍' };
+  bar.innerHTML = '<span class="bar-label">Zoom :</span>';
+  Object.entries(STAGES).forEach(([id, s]) => {
+    const btn = document.createElement('button');
+    btn.className = 'etape-btn';
+    btn.textContent = (typeEmoji[s.type] || '📍') + ' ' + s.label;
+    btn.onclick = (e) => zoomVille(id, e);
+    bar.appendChild(btn);
+  });
+}
+
+// ─── SIDEBAR ───
+function renderSidebar() {
+  const sb = document.getElementById('sidebar');
+  if (currentView === 'friend') renderFriendSidebar(sb);
+  else renderAdminSidebar(sb);
+}
+
+function renderFriendSidebar(sb) {
+  sb.innerHTML = `
+    ${planningSection(false)}
+    ${friendFormSection()}
+    ${disposSectionFriend()}
+    ${legendSection()}
+  `;
+  populateVilleSelect('inp-ville');
+  document.getElementById('inp-ville').addEventListener('change', checkSlotAvailability);
+  document.getElementById('inp-date').addEventListener('change', checkSlotAvailability);
+}
+
+function renderAdminSidebar(sb) {
+  sb.innerHTML = `
+    ${planningSection(true)}
+    ${disposSectionAdmin()}
+    ${adminAddEtapeInline()}
+    ${legendSection()}
+  `;
+}
+
+// ─── PLANNING ───
+function planningSection(adminMode) {
+  const typeClass = { surf:'surf', pote:'pote', fete:'fete', depart:'libre' };
+  const typeColor = { surf:'#378ADD', pote:'#1D9E75', fete:'#BA7517', depart:'#888' };
+  let items = '';
+  Object.entries(STAGES).forEach(([id, s]) => {
+    const cls = typeClass[s.type] || 'libre';
+    const col = typeColor[s.type] || '#888';
+    const adminBtns = adminMode ? `
+      <div class="plan-actions">
+        <button class="plan-btn plan-btn-edit" onclick="editEtape('${id}')">✏️</button>
+        <button class="plan-btn plan-btn-del" onclick="confirmDeleteEtape('${id}')">🗑</button>
+      </div>` : '';
+    items += `
+      <div class="plan-item ${cls}">
+        <div class="plan-dot" style="background:${col}"></div>
+        <div class="plan-info">
+          <div class="plan-ville">${s.label}</div>
+          ${s.dates ? `<div class="plan-dates">📅 ${s.dates}</div>` : ''}
+          <div class="plan-detail">${s.dodo}</div>
+          ${s.surf && s.surf !== '—' ? `<div class="plan-note">🏄 ${s.surf}</div>` : ''}
+        </div>
+        ${adminBtns}
+      </div>`;
+  });
+  if (!Object.keys(STAGES).length) items = `<div class="empty-state">Aucune étape — ajoute-en une !</div>`;
+  return `<div class="sidebar-section">
+    <div class="section-title">🗓 Planning ${adminMode ? '<span style="color:var(--blue);text-transform:none;letter-spacing:0;font-size:10px">(cliquer ✏️ pour modifier)</span>' : 'indicatif'}</div>
+    <div class="planning">${items}</div>
+  </div>`;
+}
+
+// ─── FRIEND FORM ───
+function friendFormSection() {
+  return `<div class="sidebar-section">
+    <div class="section-title">📅 Je suis dispo !</div>
+    <div class="info-box">
+      <strong>Comment ça marche ?</strong>
+      Choisis une étape et une date, laisse ton prénom et un message. Ta proposition sera <b>validée par l'admin</b> avant d'apparaître sur la carte pour tout le monde — ça évite les doublons sur un créneau ! 🗺️
+    </div>
+    <div class="form-group">
+      <label>Ton prénom</label>
+      <input type="text" id="inp-nom" placeholder="ex : Thomas" maxlength="40"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Étape</label>
+        <select id="inp-ville"><option value="">Choisir...</option></select>
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="inp-date" min="2026-07-08" max="2026-07-20"/>
+      </div>
+    </div>
+    <div class="slot-taken" id="slot-taken"></div>
+    <div class="form-group">
+      <label>Message (optionnel)</label>
+      <input type="text" id="inp-msg" placeholder="ex : Dispo le soir, on fait un BBQ ?"/>
+    </div>
+    <button class="btn-submit green" id="btn-add-dispo" onclick="addDispo()">✓ Proposer ma dispo</button>
+  </div>`;
+}
+
+function populateVilleSelect(id) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  const val = sel.value;
+  sel.innerHTML = '<option value="">Choisir une étape...</option>';
+  Object.entries(STAGES).forEach(([k, s]) => {
+    if (s.type === 'depart') return;
+    const opt = document.createElement('option');
+    opt.value = k; opt.textContent = s.label;
+    sel.appendChild(opt);
+  });
+  if (val) sel.value = val;
+}
+
+function checkSlotAvailability() {
+  const ville = document.getElementById('inp-ville')?.value;
+  const date = document.getElementById('inp-date')?.value;
+  const el = document.getElementById('slot-taken');
+  if (!el) return;
+  if (ville && date) {
+    const taken = dispos.filter(d => d.ville === ville && d.date === date && d.status === 'approved');
+    el.classList.toggle('visible', taken.length > 0);
+    el.textContent = taken.length > 0
+      ? `ℹ️ ${taken.map(d=>d.nom).join(', ')} ${taken.length===1?'est':'sont'} déjà confirmé(e) ici ce jour-là.`
+      : '';
+  } else {
+    el.classList.remove('visible');
+  }
+}
+
+// ─── DISPOS — FRIEND VIEW (approved only + own pending shown subtly) ───
+function disposSectionFriend() {
+  const approved = dispos.filter(d => d.status === 'approved');
+  const byVille = {};
+  approved.forEach(d => { if (!byVille[d.ville]) byVille[d.ville] = []; byVille[d.ville].push(d); });
+
+  const typeColor = { pote:'#D4537E', surf:'#378ADD', fete:'#BA7517', depart:'#888' };
+  const typeBg = { pote:'pink-bg', surf:'blue-bg', fete:'orange-bg', depart:'green-bg' };
+
+  let html = '';
+  if (!approved.length) {
+    html = `<div class="empty-state">Aucune dispo confirmée pour l'instant 👋</div>`;
+  } else {
+    Object.entries(byVille).forEach(([ville, arr]) => {
+      const s = STAGES[ville]; if (!s) return;
+      html += `<div class="dispo-group-title">📍 ${s.label}</div>`;
+      arr.sort((a,b) => a.date.localeCompare(b.date)).forEach(d => {
+        const col = typeColor[s.type] || '#1D9E75';
+        const bg = typeBg[s.type] || 'green-bg';
+        html += `<div class="dispo-item ${bg}">
+          <div class="dispo-avatar" style="background:${col}">${d.nom[0].toUpperCase()}</div>
+          <div style="flex:1">
+            <div class="dispo-name">${escHtml(d.nom)}</div>
+            <div class="dispo-detail">📅 ${formatDate(d.date)}${d.msg ? '<br>💬 ' + escHtml(d.msg) : ''}</div>
+          </div>
+        </div>`;
+      });
+    });
+  }
+  const pendingCount = dispos.filter(d => d.status === 'pending').length;
+  return `<div class="sidebar-section" id="dispos-section">
+    <div class="section-title">👥 Dispos confirmées <span class="count-pill">${approved.length}</span></div>
+    ${pendingCount ? `<p style="font-size:11px;color:#aaa;margin-bottom:8px">⏳ ${pendingCount} en attente de validation par l'admin</p>` : ''}
+    <div class="dispo-list" id="dispo-list">${html}</div>
+  </div>`;
+}
+
+// ─── DISPOS — ADMIN VIEW (tabs: pending / approved) ───
+function disposSectionAdmin() {
+  const pending = dispos.filter(d => d.status === 'pending');
+  const approved = dispos.filter(d => d.status === 'approved');
+  const rejected = dispos.filter(d => d.status === 'rejected');
+
+  let html = '';
+  const list = dispoTab === 'pending' ? pending : dispoTab === 'approved' ? approved : rejected;
+
+  if (!list.length) {
+    html = `<div class="empty-state">${dispoTab === 'pending' ? 'Aucune proposition en attente' : dispoTab === 'approved' ? 'Aucune dispo validée' : 'Aucune dispo refusée'}</div>`;
+  } else {
+    list.sort((a,b) => (b.timestamp||'').localeCompare(a.timestamp||'')).forEach(d => {
+      const s = STAGES[d.ville];
+      const villeLabel = s ? s.label : d.ville;
+      const bg = dispoTab === 'pending' ? 'pending-bg' : dispoTab === 'rejected' ? 'blue-bg' : 'green-bg';
+      const col = dispoTab === 'pending' ? '#BA7517' : '#1D9E75';
+      const actions = dispoTab === 'pending'
+        ? `<div class="dispo-validate-btns">
+             <button class="vbtn vbtn-ok" onclick="validateDispo('${d.id}','approved')">✓ Valider</button>
+             <button class="vbtn vbtn-no" onclick="validateDispo('${d.id}','rejected')">✕ Refuser</button>
+           </div>`
+        : `<button class="dispo-delete" onclick="confirmDeleteDispo('${d.id}')" title="Supprimer">×</button>`;
+      html += `<div class="dispo-item ${bg}">
+        <div class="dispo-avatar" style="background:${col}">${d.nom[0].toUpperCase()}</div>
+        <div style="flex:1">
+          <div class="dispo-name">${escHtml(d.nom)}</div>
+          <div class="dispo-detail">📍 ${villeLabel} · 📅 ${formatDate(d.date)}${d.msg ? '<br>💬 ' + escHtml(d.msg) : ''}</div>
+        </div>
+        ${actions}
+      </div>`;
+    });
+  }
+
+  return `<div class="sidebar-section" id="dispos-section">
+    <div class="section-title">👥 Dispos de tes potes</div>
+    <div class="tabs">
+      <button class="tab ${dispoTab==='pending'?'active':''}" onclick="setDispoTab('pending')">⏳ En attente (${pending.length})</button>
+      <button class="tab ${dispoTab==='approved'?'active':''}" onclick="setDispoTab('approved')">✓ Validées (${approved.length})</button>
+      <button class="tab ${dispoTab==='rejected'?'active':''}" onclick="setDispoTab('rejected')">✕ Refusées (${rejected.length})</button>
+    </div>
+    <div class="dispo-list" id="dispo-list">${html}</div>
+  </div>`;
+}
+
+function setDispoTab(tab) { dispoTab = tab; renderSidebar(); }
+
+// ─── ADMIN ADD ETAPE INLINE ───
+function adminAddEtapeInline() {
+  return `<div class="sidebar-section" style="background:#f9f9fb">
+    <div class="section-title">⚙️ Gestion des étapes</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Utilise les boutons ✏️ et 🗑 dans le planning ci-dessus, ou ajoute une nouvelle étape.</p>
+    <button class="btn-submit" onclick="showAddEtapeModal()" style="margin-top:0">+ Ajouter une étape</button>
+  </div>`;
+}
+
+// ─── LEGEND ───
+function legendSection() {
+  return `<div class="sidebar-section">
+    <div class="section-title">🗺 Légende</div>
+    <div class="legend">
+      <div class="leg-item"><div class="leg-dot" style="background:#E24B4A"></div> Bordeaux (départ / retour)</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#1D9E75"></div> Chez un pote</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#378ADD"></div> Étape surf (caisse)</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#BA7517"></div> Fêtes de Bayonne</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#D4537E"></div> Pote dispo confirmé</div>
+    </div>
+  </div>`;
+}
+
+// ─── ADD DISPO (friend → goes to "pending") ───
+async function addDispo() {
+  const nom   = document.getElementById('inp-nom')?.value.trim();
+  const ville = document.getElementById('inp-ville')?.value;
+  const date  = document.getElementById('inp-date')?.value;
+  const msg   = document.getElementById('inp-msg')?.value.trim();
+  if (!nom || !ville || !date) { showToast('Remplis ton prénom, l\'étape et la date !', 'error'); return; }
+
+  const btn = document.getElementById('btn-add-dispo');
+  btn.disabled = true; btn.textContent = 'Envoi en cours...';
+
+  try {
+    const result = await apiPost({ action:'addDispo', nom, ville, date, msg });
+    if (result.success) {
+      showToast(`✓ Proposition envoyée ! Elle sera visible une fois validée par l'admin.`, 'success');
+      document.getElementById('inp-nom').value = '';
+      document.getElementById('inp-msg').value = '';
+      document.getElementById('inp-date').value = '';
+      await fullSync(false);
+    } else {
+      showToast('Erreur lors de l\'envoi, réessaie.', 'error');
+    }
+  } catch (err) {
+    showToast('Erreur de connexion au Sheet.', 'error');
+    console.error(err);
+  }
+  btn.disabled = false; btn.textContent = '✓ Proposer ma dispo';
+}
+
+// ─── ADMIN: VALIDATE / REJECT ───
+async function validateDispo(id, status) {
+  try {
+    const result = await apiPost({ action:'updateDispoStatus', id, status });
+    if (result.success) {
+      showToast(status === 'approved' ? '✓ Dispo validée et mise en ligne' : 'Dispo refusée', 'success');
+      await fullSync(false);
+    } else {
+      showToast('Erreur lors de la mise à jour.', 'error');
+    }
+  } catch (err) { showToast('Erreur de connexion.', 'error'); console.error(err); }
+}
+
+// ─── DELETE DISPO (admin only, for approved/rejected lists) ───
+function confirmDeleteDispo(id) {
+  const d = dispos.find(x => x.id === id);
+  if (!d) return;
+  showConfirm(`Supprimer la dispo de ${d.nom} ?`, `${d.nom} — ${STAGES[d.ville]?.label || d.ville} — ${formatDate(d.date)}`, async () => {
+    try {
+      const result = await apiPost({ action:'deleteDispo', id });
+      if (result.success) { showToast('Dispo supprimée', 'success'); await fullSync(false); }
+      else showToast('Erreur lors de la suppression.', 'error');
+    } catch (err) { showToast('Erreur de connexion.', 'error'); console.error(err); }
+  }, 'Supprimer');
+}
+
+// ─── ADMIN: ETAPES ───
+function showAddEtapeModal() {
+  editingEtapeId = null;
+  document.getElementById('modal-etape-title').textContent = '➕ Nouvelle étape';
+  ['e-id','e-label','e-lat','e-lng','e-surf','e-dodo','e-info','e-dates'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('e-type').value = 'surf';
+  document.getElementById('e-id').disabled = false;
+  document.getElementById('etape-error').classList.remove('show');
+  showModal('modal-etape');
+}
+
+function editEtape(id) {
+  const s = STAGES[id]; if (!s) return;
+  editingEtapeId = id;
+  document.getElementById('modal-etape-title').textContent = `✏️ Modifier — ${s.label}`;
+  document.getElementById('e-id').value = id;
+  document.getElementById('e-id').disabled = true;
+  document.getElementById('e-label').value = s.label;
+  document.getElementById('e-lat').value = s.lat;
+  document.getElementById('e-lng').value = s.lng;
+  document.getElementById('e-type').value = s.type;
+  document.getElementById('e-surf').value = s.surf || '';
+  document.getElementById('e-dodo').value = s.dodo || '';
+  document.getElementById('e-info').value = s.info || '';
+  document.getElementById('e-dates').value = s.dates || '';
+  document.getElementById('etape-error').classList.remove('show');
+  showModal('modal-etape');
+}
+
+async function saveEtape() {
+  const id    = editingEtapeId || document.getElementById('e-id').value.trim().replace(/\s+/g,'_').toLowerCase();
+  const label = document.getElementById('e-label').value.trim();
+  const lat   = parseFloat(document.getElementById('e-lat').value);
+  const lng   = parseFloat(document.getElementById('e-lng').value);
+  if (!id || !label || isNaN(lat) || isNaN(lng)) { document.getElementById('etape-error').classList.add('show'); return; }
+
+  const typeColors = { surf:'#378ADD', pote:'#1D9E75', fete:'#BA7517', depart:'#E24B4A' };
+  const type = document.getElementById('e-type').value;
+  const payload = {
+    action: 'saveEtape', id, label, lat, lng, type,
+    color: typeColors[type] || '#378ADD',
+    surf:  document.getElementById('e-surf').value.trim() || '—',
+    dodo:  document.getElementById('e-dodo').value.trim() || '—',
+    info:  document.getElementById('e-info').value.trim(),
+    dates: document.getElementById('e-dates').value.trim(),
+  };
+  try {
+    const result = await apiPost(payload);
+    if (result.success) {
+      closeModal('modal-etape');
+      showToast(`✓ Étape "${label}" enregistrée`, 'success');
+      await fullSync(false);
+    } else showToast('Erreur lors de l\'enregistrement.', 'error');
+  } catch (err) { showToast('Erreur de connexion.', 'error'); console.error(err); }
+}
+
+function confirmDeleteEtape(id) {
+  const s = STAGES[id];
+  showConfirm(`Supprimer l'étape "${s.label}" ?`, 'Les dispos liées resteront dans le Sheet mais ne seront plus affichées sur la carte.', async () => {
+    try {
+      const result = await apiPost({ action:'deleteEtape', id });
+      if (result.success) { showToast('Étape supprimée', 'success'); await fullSync(false); }
+      else showToast('Erreur lors de la suppression.', 'error');
+    } catch (err) { showToast('Erreur de connexion.', 'error'); console.error(err); }
+  }, 'Supprimer');
+}
+
+// ─── VIEW SWITCHING ───
+function setView(v) {
+  currentView = v;
+  document.getElementById('btn-friend').classList.toggle('active', v === 'friend');
+  document.getElementById('btn-admin').classList.toggle('active', v === 'admin');
+  document.getElementById('admin-bar').classList.toggle('show', v === 'admin');
+  renderSidebar();
+}
+
+function tryAdmin() {
+  if (isAdmin) { setView('admin'); return; }
+  document.getElementById('pwd-input').value = '';
+  document.getElementById('pwd-error').classList.remove('show');
+  showModal('modal-login');
+  setTimeout(() => document.getElementById('pwd-input').focus(), 100);
+}
+
+function checkPwd() {
+  const v = document.getElementById('pwd-input').value;
+  if (v === ADMIN_PWD) {
+    isAdmin = true;
+    closeModal('modal-login');
+    setView('admin');
+    showToast('✓ Connecté en tant qu\'admin', 'success');
+  } else {
+    document.getElementById('pwd-error').classList.add('show');
+    document.getElementById('pwd-input').select();
+  }
+}
+
+function logoutAdmin() { isAdmin = false; setView('friend'); showToast('Déconnecté', ''); }
+
+// ─── UTILS ───
+function showModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+let confirmCallback = null;
+function showConfirm(title, msg, cb, btnLabel='Confirmer') {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent = msg;
+  document.getElementById('confirm-ok').textContent = btnLabel;
+  confirmCallback = cb;
+  document.getElementById('confirm-ok').onclick = () => { closeModal('modal-confirm'); if (confirmCallback) confirmCallback(); };
+  showModal('modal-confirm');
+}
+
+function scrollToDispos() {
+  const el = document.getElementById('dispos-section');
+  if (el) el.scrollIntoView({ behavior: 'smooth' });
+}
+
+function updateBadge() {
+  const n = dispos.filter(d => d.status === 'approved').length;
+  document.getElementById('badge-dispos').textContent = n + ' dispo' + (n > 1 ? 's' : '');
+}
+
+function formatDate(s) {
+  if (!s) return '';
+  const parts = String(s).split('-');
+  if (parts.length < 3) return s;
+  const [y,m,dd] = parts;
+  const M = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
+  return parseInt(dd) + ' ' + M[parseInt(m)-1];
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+let toastTimer;
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = type ? `show ${type}` : 'show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = '', 3500);
+}
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) closeModal(el.id); });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') ['modal-login','modal-etape','modal-confirm'].forEach(id => closeModal(id));
+});
+
+// ─── INIT ───
+(async function init() {
+  await fullSync(true);
+  setInterval(() => fullSync(false), POLL_INTERVAL);
+})();
+</script>
+</body>
+</html>
