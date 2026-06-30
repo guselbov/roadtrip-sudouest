@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -261,7 +262,7 @@ header { background: #fff; border-bottom: 1px solid var(--border); padding: 12px
 // ════════════════════════════════════════════════
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbywdPQleOeH8u-L9ecVZnXP3CgDf2Hq2UPTqXVQpXsg1OeSamdLwxjCoxtHlTc42CFiog/exec';
 const ADMIN_PWD = 'sudouest2026';
-const POLL_INTERVAL = 8000; // ms
+const POLL_INTERVAL = 15000; // ms
 
 // ─── STATE ───
 let STAGES = {};
@@ -278,8 +279,13 @@ let dispoTab = 'approved'; // for friend view: approved | pending(admin only)
 // ─── API HELPERS ───
 async function apiGet(action) {
   const res = await fetch(`${SCRIPT_URL}?action=${action}`);
-  if (!res.ok) throw new Error('Erreur réseau');
-  return res.json();
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    console.error('Réponse non-JSON reçue pour', action, text.slice(0,200));
+    throw new Error('Réponse invalide du Sheet');
+  }
 }
 async function apiPost(payload) {
   const res = await fetch(SCRIPT_URL, {
@@ -287,7 +293,13 @@ async function apiPost(payload) {
     headers: { 'Content-Type': 'text/plain' }, // avoids CORS preflight on Apps Script
     body: JSON.stringify(payload)
   });
-  return res.json();
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    console.error('Réponse non-JSON reçue pour', payload.action, text.slice(0,200));
+    return { success: false, error: 'invalid_response' };
+  }
 }
 
 function setSyncStatus(loading, text) {
@@ -316,7 +328,11 @@ async function loadDispos() {
   }));
 }
 
+let syncInProgress = false;
+
 async function fullSync(showLoading=true) {
+  if (syncInProgress) return; // avoid overlapping calls hammering Apps Script
+  syncInProgress = true;
   if (showLoading) setSyncStatus(true, 'Synchronisation...');
   try {
     await Promise.all([loadEtapes(), loadDispos()]);
@@ -329,7 +345,7 @@ async function fullSync(showLoading=true) {
     // view: any redraw replaces the <select>/<input> DOM nodes and wipes
     // whatever they've started typing. Only the initial load (showLoading)
     // or an explicit action (submit, view switch) is allowed to redraw it.
-    if (showLoading || currentView !== 'friend') {
+    if (showLoading || currentView !== 'friend' || !document.getElementById('dispos-section')) {
       renderSidebar();
     } else {
       // Still keep the "dispos confirmées" list and pending count fresh
@@ -337,8 +353,10 @@ async function fullSync(showLoading=true) {
       updateDisposListOnly();
     }
   } catch (err) {
-    setSyncStatus(false, '⚠️ Erreur de connexion au Sheet');
+    setSyncStatus(false, '⚠️ Erreur de connexion au Sheet — nouvelle tentative...');
     console.error(err);
+  } finally {
+    syncInProgress = false;
   }
 }
 
