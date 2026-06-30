@@ -150,18 +150,6 @@ header { background: #fff; border-bottom: 1px solid var(--border); padding: 12px
 .tab { font-size: 11px; padding: 4px 10px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); background: #fff; font-family: inherit; font-weight: 600; color: var(--muted); }
 .tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.cal-dow { font-size: 9px; text-align: center; color: #aaa; font-weight: 700; text-transform: uppercase; padding-bottom: 2px; }
-.cal-day { position: relative; aspect-ratio: 1; border-radius: 7px; background: var(--grey); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #888; cursor: default; border: 1.5px solid transparent; }
-.cal-day.empty { background: transparent; }
-.cal-day.has-dispo { background: var(--green-light); color: #1f4d12; border-color: #b8db94; cursor: pointer; }
-.cal-day.has-dispo:hover { border-color: var(--green); }
-.cal-day .cal-dots { display: flex; gap: 2px; margin-top: 1px; position: absolute; bottom: 4px; }
-.cal-dot-mini { width: 4px; height: 4px; border-radius: 50%; }
-.cal-day-tip { display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; padding: 6px 9px; border-radius: 7px; font-size: 10.5px; font-weight: 500; white-space: nowrap; z-index: 50; box-shadow: 0 4px 14px rgba(0,0,0,.25); line-height: 1.5; text-align: left; }
-.cal-day.has-dispo:hover .cal-day-tip { display: block; }
-.cal-legend-note { font-size: 10.5px; color: #aaa; margin-top: 8px; text-align: center; }
-
 @media (max-width: 700px) {
   .main { grid-template-columns: 1fr; }
   #map { height: 280px; min-height: 280px; }
@@ -274,8 +262,6 @@ header { background: #fff; border-bottom: 1px solid var(--border); padding: 12px
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbywdPQleOeH8u-L9ecVZnXP3CgDf2Hq2UPTqXVQpXsg1OeSamdLwxjCoxtHlTc42CFiog/exec';
 const ADMIN_PWD = 'sudouest2026';
 const POLL_INTERVAL = 15000; // ms
-const TRIP_START = '2026-07-08';
-const TRIP_END = '2026-07-20';
 
 // ─── STATE ───
 let STAGES = {};
@@ -361,10 +347,9 @@ async function fullSync(showLoading=true) {
     if (showLoading || currentView !== 'friend' || !document.getElementById('dispos-section')) {
       renderSidebar();
     } else {
-      // Still keep the "dispos confirmées" list, the calendar and the
-      // pending count fresh without touching the form fields above them.
+      // Still keep the "dispos confirmées" list and pending count fresh
+      // without touching the form fields above it.
       updateDisposListOnly();
-      updateCalendarOnly();
     }
   } catch (err) {
     setSyncStatus(false, '⚠️ Erreur de connexion au Sheet — nouvelle tentative...');
@@ -378,12 +363,6 @@ function updateDisposListOnly() {
   const section = document.getElementById('dispos-section');
   if (!section) return;
   section.outerHTML = disposSectionFriend();
-}
-
-function updateCalendarOnly() {
-  const section = document.getElementById('calendar-section');
-  if (!section) return;
-  section.outerHTML = calendarSection();
 }
 
 // ─── MAP SETUP ───
@@ -482,10 +461,9 @@ function renderSidebar() {
 
 function renderFriendSidebar(sb) {
   sb.innerHTML = `
-    ${friendFormSection()}
     ${planningSection(false)}
+    ${friendFormSection()}
     ${disposSectionFriend()}
-    ${calendarSection()}
     ${legendSection()}
   `;
   populateVilleSelect('inp-ville');
@@ -497,7 +475,6 @@ function renderAdminSidebar(sb) {
   sb.innerHTML = `
     ${planningSection(true)}
     ${disposSectionAdmin()}
-    ${calendarSection()}
     ${adminAddEtapeInline()}
     ${legendSection()}
   `;
@@ -679,60 +656,6 @@ function disposSectionAdmin() {
 }
 
 function setDispoTab(tab) { dispoTab = tab; renderSidebar(); }
-
-// ─── CALENDAR — shows reserved/approved dates across the trip ───
-function calendarSection() {
-  const approved = dispos.filter(d => d.status === 'approved');
-  const byDate = {};
-  approved.forEach(d => {
-    if (!byDate[d.date]) byDate[d.date] = [];
-    byDate[d.date].push(d);
-  });
-
-  const typeColor = { pote:'#D4537E', surf:'#378ADD', fete:'#BA7517', depart:'#888' };
-
-  const start = new Date(TRIP_START + 'T00:00:00');
-  const end = new Date(TRIP_END + 'T00:00:00');
-  // Monday-first offset (getDay(): 0=Sun..6=Sat)
-  const startOffset = (start.getDay() + 6) % 7;
-
-  let cells = '';
-  for (let i = 0; i < startOffset; i++) cells += `<div class="cal-day empty"></div>`;
-
-  const cur = new Date(start);
-  while (cur <= end) {
-    const iso = cur.toISOString().slice(0,10);
-    const dayNum = cur.getDate();
-    const dayDispos = byDate[iso] || [];
-    if (dayDispos.length) {
-      const dots = dayDispos.slice(0,4).map(d => {
-        const s = STAGES[d.ville];
-        const col = (s && typeColor[s.type]) || '#1D9E75';
-        return `<span class="cal-dot-mini" style="background:${col}"></span>`;
-      }).join('');
-      const tipLines = dayDispos.map(d => {
-        const s = STAGES[d.ville];
-        return `${escHtml(d.nom)} — ${s ? escHtml(s.label) : escHtml(d.ville)}`;
-      }).join('<br>');
-      cells += `<div class="cal-day has-dispo">
-        ${dayNum}
-        <div class="cal-dots">${dots}</div>
-        <div class="cal-day-tip">${tipLines}</div>
-      </div>`;
-    } else {
-      cells += `<div class="cal-day">${dayNum}</div>`;
-    }
-    cur.setDate(cur.getDate() + 1);
-  }
-
-  const dows = ['L','M','M','J','V','S','D'].map(d => `<div class="cal-dow">${d}</div>`).join('');
-
-  return `<div class="sidebar-section" id="calendar-section">
-    <div class="section-title">📆 Calendrier des dates réservées</div>
-    <div class="cal-grid">${dows}${cells}</div>
-    <div class="cal-legend-note">${approved.length ? 'Survole un jour coloré pour voir qui est dispo' : 'Aucune date réservée pour l\\'instant'}</div>
-  </div>`;
-}
 
 // ─── ADMIN ADD ETAPE INLINE ───
 function adminAddEtapeInline() {
