@@ -278,9 +278,10 @@ header { background: #fff; border-bottom: 1px solid var(--border); padding: 12px
 // ════════════════════════════════════════════════
 // CONFIG — colle ton URL Apps Script ici
 // ════════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbywdPQleOeH8u-L9ecVZnXP3CgDf2Hq2UPTqXVQpXsg1OeSamdLwxjCoxtHlTc42CFiog/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxzfHpf9lx2eYd748x2wwxXpnAYNo2BExk5xjGFkFtGGr55APjROf3CB3yVQ1IDsglS_w/exec';
 const ADMIN_PWD = 'sudouest2026';
 const POLL_INTERVAL = 15000; // ms
+const CAL_DAYS = Array.from({length:13}, (_,i) => 8+i); // 8 → 20 juillet
 
 // ─── STATE ───
 let STAGES = {};
@@ -393,14 +394,25 @@ function updateDisposListOnly() {
 }
 
 // ─── MAP SETUP ───
-const map = L.map('map').setView([43.95, -1.1], 8);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 18 }).addTo(map);
+// The map is wrapped in try/catch on purpose: if Leaflet fails to load (slow
+// network, blocked CDN, ad-blocker...) this must NOT stop the rest of the
+// script from running — otherwise the Google Sheet sync and every admin
+// button would silently stop working too, since they're defined further
+// down in this same script tag.
+let map = null;
+try {
+  map = L.map('map').setView([43.95, -1.1], 8);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 18 }).addTo(map);
+} catch (err) {
+  console.error('Carte indisponible (Leaflet n\'a pas pu se charger) :', err);
+}
 
 function makeIcon(color, size=14) {
   return L.divIcon({ className:'', html:`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>`, iconAnchor:[size/2,size/2], popupAnchor:[0,-size/2] });
 }
 
 function renderMap() {
+  if (!map) return;
   Object.values(mapMarkers).forEach(m => map.removeLayer(m));
   mapMarkers = {};
   if (polylineLayer) { map.removeLayer(polylineLayer); polylineLayer = null; }
@@ -430,15 +442,16 @@ function renderMap() {
 
 function zoomVille(id, e) {
   const s = STAGES[id]; if (!s) return;
-  map.setView([s.lat, s.lng], 12);
+  if (map) map.setView([s.lat, s.lng], 12);
   document.querySelectorAll('.etape-btn').forEach(b => b.classList.remove('active'));
   if (e && e.currentTarget) e.currentTarget.classList.add('active');
 }
 
-function clearPoteMarkers() { Object.values(poteMarkers).forEach(m => map.removeLayer(m)); poteMarkers = {}; poteCount = {}; }
+function clearPoteMarkers() { if (map) Object.values(poteMarkers).forEach(m => map.removeLayer(m)); poteMarkers = {}; poteCount = {}; }
 
 // A dispo can now overlap several stages — place one marker per overlapping stage.
 function addPoteMarkersForDispo(d) {
+  if (!map) return;
   const overlaps = computeOverlaps(d.dateStart, d.dateEnd);
   overlaps.forEach(o => {
     const s = STAGES[o.id]; if (!s) return;
@@ -851,8 +864,6 @@ function calendarSectionFriend() {
     <div id="cal-friend-grid" style="overflow-x:auto"></div>
   </div>`;
 }
-
-const CAL_DAYS = Array.from({length:13}, (_,i) => 8+i);
 
 function calHeaderRow() {
   let html = `<div class="cal-day-head"></div>`;
