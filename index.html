@@ -273,7 +273,7 @@ let mapMarkers = {};
 let polylineLayer = null;
 let poteMarkers = {};
 let poteCount = {};
-let dispoTab = 'approved'; // for friend view: approved | pending(admin only)
+
 
 // ─── API HELPERS ───
 async function apiGet(action) {
@@ -363,6 +363,7 @@ function updateDisposListOnly() {
   const section = document.getElementById('dispos-section');
   if (!section) return;
   section.outerHTML = disposSectionFriend();
+  buildCalendarFriend();
 }
 
 // ─── MAP SETUP ───
@@ -460,24 +461,25 @@ function renderSidebar() {
 }
 
 function renderFriendSidebar(sb) {
-  sb.innerHTML = `
-    ${planningSection(false)}
-    ${friendFormSection()}
-    ${disposSectionFriend()}
-    ${legendSection()}
-  `;
+  sb.innerHTML =
+    friendFormSection() +
+    planningSection(false) +
+    disposSectionFriend() +
+    calendarSectionFriend() +
+    legendSection();
   populateVilleSelect('inp-ville');
   document.getElementById('inp-ville').addEventListener('change', checkSlotAvailability);
   document.getElementById('inp-date').addEventListener('change', checkSlotAvailability);
+  buildCalendarFriend();
 }
 
 function renderAdminSidebar(sb) {
-  sb.innerHTML = `
-    ${planningSection(true)}
-    ${disposSectionAdmin()}
-    ${adminAddEtapeInline()}
-    ${legendSection()}
-  `;
+  sb.innerHTML =
+    adminDashboard() +
+    planningSection(true) +
+    adminAddEtapeInline() +
+    legendSection();
+  buildCalendarAdmin();
 }
 
 // ─── PLANNING ───
@@ -609,53 +611,6 @@ function disposSectionFriend() {
     <div class="dispo-list" id="dispo-list">${html}</div>
   </div>`;
 }
-
-// ─── DISPOS — ADMIN VIEW (tabs: pending / approved) ───
-function disposSectionAdmin() {
-  const pending = dispos.filter(d => d.status === 'pending');
-  const approved = dispos.filter(d => d.status === 'approved');
-  const rejected = dispos.filter(d => d.status === 'rejected');
-
-  let html = '';
-  const list = dispoTab === 'pending' ? pending : dispoTab === 'approved' ? approved : rejected;
-
-  if (!list.length) {
-    html = `<div class="empty-state">${dispoTab === 'pending' ? 'Aucune proposition en attente' : dispoTab === 'approved' ? 'Aucune dispo validée' : 'Aucune dispo refusée'}</div>`;
-  } else {
-    list.sort((a,b) => (b.timestamp||'').localeCompare(a.timestamp||'')).forEach(d => {
-      const s = STAGES[d.ville];
-      const villeLabel = s ? s.label : d.ville;
-      const bg = dispoTab === 'pending' ? 'pending-bg' : dispoTab === 'rejected' ? 'blue-bg' : 'green-bg';
-      const col = dispoTab === 'pending' ? '#BA7517' : '#1D9E75';
-      const actions = dispoTab === 'pending'
-        ? `<div class="dispo-validate-btns">
-             <button class="vbtn vbtn-ok" onclick="validateDispo('${d.id}','approved')">✓ Valider</button>
-             <button class="vbtn vbtn-no" onclick="validateDispo('${d.id}','rejected')">✕ Refuser</button>
-           </div>`
-        : `<button class="dispo-delete" onclick="confirmDeleteDispo('${d.id}')" title="Supprimer">×</button>`;
-      html += `<div class="dispo-item ${bg}">
-        <div class="dispo-avatar" style="background:${col}">${d.nom[0].toUpperCase()}</div>
-        <div style="flex:1">
-          <div class="dispo-name">${escHtml(d.nom)}</div>
-          <div class="dispo-detail">📍 ${villeLabel} · 📅 ${formatDate(d.date)}${d.msg ? '<br>💬 ' + escHtml(d.msg) : ''}</div>
-        </div>
-        ${actions}
-      </div>`;
-    });
-  }
-
-  return `<div class="sidebar-section" id="dispos-section">
-    <div class="section-title">👥 Dispos de tes potes</div>
-    <div class="tabs">
-      <button class="tab ${dispoTab==='pending'?'active':''}" onclick="setDispoTab('pending')">⏳ En attente (${pending.length})</button>
-      <button class="tab ${dispoTab==='approved'?'active':''}" onclick="setDispoTab('approved')">✓ Validées (${approved.length})</button>
-      <button class="tab ${dispoTab==='rejected'?'active':''}" onclick="setDispoTab('rejected')">✕ Refusées (${rejected.length})</button>
-    </div>
-    <div class="dispo-list" id="dispo-list">${html}</div>
-  </div>`;
-}
-
-function setDispoTab(tab) { dispoTab = tab; renderSidebar(); }
 
 // ─── ADMIN ADD ETAPE INLINE ───
 function adminAddEtapeInline() {
@@ -800,6 +755,198 @@ function confirmDeleteEtape(id) {
       else showToast('Erreur lors de la suppression.', 'error');
     } catch (err) { showToast('Erreur de connexion.', 'error'); console.error(err); }
   }, 'Supprimer');
+}
+
+// ─── CALENDAR (friend) ───
+function calendarSectionFriend() {
+  return `<div class="sidebar-section" id="cal-friend-section">
+    <div class="section-title">📆 Calendrier des dispos</div>
+    <div id="cal-friend-grid" style="overflow-x:auto"></div>
+  </div>`;
+}
+
+function buildCalendarFriend() {
+  const el = document.getElementById('cal-friend-grid');
+  if (!el) return;
+  const days = Array.from({length:13}, (_,i) => 8+i);
+  const stageList = Object.entries(STAGES).filter(([,s]) => s.type !== 'depart');
+  const approved = dispos.filter(d => d.status === 'approved');
+
+  let html = `<div style="display:grid;grid-template-columns:52px repeat(13,1fr);gap:2px;min-width:300px">`;
+  // Header row
+  html += `<div style="font-size:9px;color:#aaa"></div>`;
+  days.forEach(d => {
+    html += `<div style="text-align:center;font-size:9px;color:#aaa;padding-bottom:3px">${d}</div>`;
+  });
+  // Stage rows
+  stageList.forEach(([id, s]) => {
+    html += `<div style="font-size:9px;font-weight:600;color:#555;padding-right:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px">
+      <span style="width:6px;height:6px;border-radius:50%;background:${s.color};flex-shrink:0;display:inline-block"></span>${s.label.split('/')[0].trim()}
+    </div>`;
+    days.forEach(d => {
+      const dateStr = `2026-07-${String(d).padStart(2,'0')}`;
+      const potes = approved.filter(dp => dp.ville === id && dp.date === dateStr);
+      const isInRange = stageInRange(s, d);
+      let cell = '';
+      if (potes.length) {
+        const initials = potes.map(p => p.nom[0].toUpperCase()).join('');
+        cell = `<div title="${potes.map(p=>p.nom).join(', ')}" style="height:20px;border-radius:3px;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;cursor:default">${initials.slice(0,2)}</div>`;
+      } else if (isInRange) {
+        cell = `<div style="height:20px;border-radius:3px;background:${s.color};opacity:0.15"></div>`;
+      } else {
+        cell = `<div style="height:20px;border-radius:3px;background:#f5f4f0"></div>`;
+      }
+      html += cell;
+    });
+  });
+  html += `</div>`;
+  html += `<div style="font-size:10px;color:#aaa;margin-top:6px">Juillet 2026 · Initiales = pote confirmé sur ce créneau</div>`;
+  el.innerHTML = html;
+}
+
+function stageInRange(s, day) {
+  if (!s.dates) return false;
+  const m = s.dates.match(/(\d+)→(\d+)/);
+  if (m) return day >= parseInt(m[1]) && day <= parseInt(m[2]);
+  const single = s.dates.match(/(\d+)\s*juil/);
+  if (single) return day === parseInt(single[1]);
+  return false;
+}
+
+// ─── ADMIN DASHBOARD ───
+function adminDashboard() {
+  const pending  = dispos.filter(d => d.status === 'pending');
+  const approved = dispos.filter(d => d.status === 'approved');
+  const rejected = dispos.filter(d => d.status === 'rejected');
+  const poteNames = [...new Set(approved.map(d => d.nom))];
+
+  const days = Array.from({length:13}, (_,i) => 8+i);
+  const stageList = Object.entries(STAGES).filter(([,s]) => s.type !== 'depart');
+
+  // Stat cards
+  let stats = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+    <div style="background:#f5f4f0;border-radius:8px;padding:10px 12px">
+      <div style="font-size:10px;color:#888;margin-bottom:3px">Étapes</div>
+      <div style="font-size:22px;font-weight:700;color:#1a1a1a">${Object.keys(STAGES).length}</div>
+    </div>
+    <div style="background:#eaf3de;border-radius:8px;padding:10px 12px">
+      <div style="font-size:10px;color:#3b6d11;margin-bottom:3px">Confirmées</div>
+      <div style="font-size:22px;font-weight:700;color:#1D9E75">${approved.length}</div>
+    </div>
+    <div style="background:#fff8e6;border-radius:8px;padding:10px 12px">
+      <div style="font-size:10px;color:#854f0b;margin-bottom:3px">En attente</div>
+      <div style="font-size:22px;font-weight:700;color:#BA7517">${pending.length}</div>
+    </div>
+    <div style="background:#e6f1fb;border-radius:8px;padding:10px 12px">
+      <div style="font-size:10px;color:#185fa5;margin-bottom:3px">Potes</div>
+      <div style="font-size:22px;font-weight:700;color:#378ADD">${poteNames.length}</div>
+    </div>
+  </div>`;
+
+  // Calendar grid (placeholder, filled by buildCalendarAdmin)
+  let cal = `<div style="background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:12px;margin-bottom:12px">
+    <div style="font-size:11px;font-weight:700;color:#444;letter-spacing:.4px;text-transform:uppercase;margin-bottom:10px">📆 Calendrier</div>
+    <div id="cal-admin-grid" style="overflow-x:auto"></div>
+  </div>`;
+
+  // Pending validations
+  let pendingHtml = '';
+  if (pending.length) {
+    pendingHtml = `<div style="background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:#444;letter-spacing:.4px;text-transform:uppercase;margin-bottom:10px">⏳ En attente de validation (${pending.length})</div>
+      <div style="display:flex;flex-direction:column;gap:7px">`;
+    pending.sort((a,b) => (b.timestamp||'').localeCompare(a.timestamp||'')).forEach(d => {
+      const s = STAGES[d.ville];
+      pendingHtml += `<div style="display:flex;align-items:center;gap:8px;background:#fff8e6;border:1px solid #fac775;border-radius:8px;padding:9px 10px">
+        <div style="width:26px;height:26px;border-radius:50%;background:#BA7517;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0">${d.nom[0].toUpperCase()}</div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:12px">${escHtml(d.nom)}</div>
+          <div style="font-size:11px;color:#555">📍 ${s?s.label:d.ville} · 📅 ${formatDate(d.date)}${d.msg?'<br>💬 '+escHtml(d.msg):''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <button class="vbtn vbtn-ok" onclick="validateDispo('${d.id}','approved')">✓ Valider</button>
+          <button class="vbtn vbtn-no" onclick="validateDispo('${d.id}','rejected')">✕ Refuser</button>
+        </div>
+      </div>`;
+    });
+    pendingHtml += `</div></div>`;
+  }
+
+  // Approved list
+  let approvedHtml = `<div style="background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:12px;margin-bottom:12px">
+    <div style="font-size:11px;font-weight:700;color:#444;letter-spacing:.4px;text-transform:uppercase;margin-bottom:10px">✅ Dispos confirmées (${approved.length})</div>`;
+  if (!approved.length) {
+    approvedHtml += `<div style="font-size:12px;color:#aaa;font-style:italic;text-align:center;padding:10px 0">Aucune dispo validée</div>`;
+  } else {
+    approvedHtml += `<div style="display:flex;flex-direction:column;gap:5px">`;
+    approved.sort((a,b)=>a.date.localeCompare(b.date)).forEach(d => {
+      const s = STAGES[d.ville];
+      const col = s ? s.color : '#1D9E75';
+      approvedHtml += `<div style="display:flex;align-items:center;gap:7px;padding:6px 8px;background:#eaf3de;border:1px solid #c0dd97;border-radius:7px">
+        <div style="width:22px;height:22px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${d.nom[0].toUpperCase()}</div>
+        <div style="flex:1;font-size:11px;font-weight:600">${escHtml(d.nom)}</div>
+        <div style="font-size:10px;color:#555">${s?s.label:d.ville} · ${formatDate(d.date)}</div>
+        <button class="dispo-delete" onclick="confirmDeleteDispo('${d.id}')" title="Supprimer">×</button>
+      </div>`;
+    });
+    approvedHtml += `</div>`;
+  }
+  approvedHtml += `</div>`;
+
+  return `<div class="sidebar-section" style="background:#f9f9fb">
+    <div class="section-title">📊 Dashboard</div>
+    ${stats}${cal}${pendingHtml}${approvedHtml}
+  </div>`;
+}
+
+function buildCalendarAdmin() {
+  const el = document.getElementById('cal-admin-grid');
+  if (!el) return;
+  const days = Array.from({length:13}, (_,i) => 8+i);
+  const stageList = Object.entries(STAGES).filter(([,s]) => s.type !== 'depart');
+  const approved = dispos.filter(d => d.status === 'approved');
+  const pending  = dispos.filter(d => d.status === 'pending');
+
+  let html = `<div style="display:grid;grid-template-columns:52px repeat(13,1fr);gap:2px;min-width:300px">`;
+  // Header
+  html += `<div style="font-size:9px;color:#aaa"></div>`;
+  days.forEach(d => {
+    html += `<div style="text-align:center;font-size:9px;color:#aaa;padding-bottom:3px">${d}</div>`;
+  });
+  // Rows
+  stageList.forEach(([id, s]) => {
+    html += `<div style="font-size:9px;font-weight:600;color:#555;padding-right:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px">
+      <span style="width:6px;height:6px;border-radius:50%;background:${s.color};flex-shrink:0;display:inline-block"></span>${s.label.split('/')[0].trim()}
+    </div>`;
+    days.forEach(d => {
+      const dateStr = `2026-07-${String(d).padStart(2,'0')}`;
+      const app = approved.filter(dp => dp.ville === id && dp.date === dateStr);
+      const pend = pending.filter(dp => dp.ville === id && dp.date === dateStr);
+      const isInRange = stageInRange(s, d);
+      let cell = '';
+      if (app.length) {
+        const initials = app.map(p => p.nom[0].toUpperCase()).join('');
+        cell = `<div title="${app.map(p=>p.nom).join(', ')}" style="height:20px;border-radius:3px;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;cursor:default;position:relative">
+          ${initials.slice(0,2)}
+          ${pend.length ? `<span style="position:absolute;top:-2px;right:-2px;width:6px;height:6px;border-radius:50%;background:#BA7517;border:1px solid #fff"></span>` : ''}
+        </div>`;
+      } else if (pend.length) {
+        cell = `<div title="${pend.map(p=>p.nom+' (en attente)').join(', ')}" style="height:20px;border-radius:3px;background:#fac775;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#854f0b;cursor:default">${pend[0].nom[0].toUpperCase()}</div>`;
+      } else if (isInRange) {
+        cell = `<div style="height:20px;border-radius:3px;background:${s.color};opacity:0.15"></div>`;
+      } else {
+        cell = `<div style="height:20px;border-radius:3px;background:#f5f4f0"></div>`;
+      }
+      html += cell;
+    });
+  });
+  html += `</div>`;
+  html += `<div style="display:flex;gap:10px;margin-top:6px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#555"><span style="width:10px;height:10px;border-radius:2px;background:#1D9E75;display:inline-block"></span>Confirmé</div>
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#555"><span style="width:10px;height:10px;border-radius:2px;background:#fac775;display:inline-block"></span>En attente</div>
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#aaa"><span style="width:10px;height:10px;border-radius:2px;background:#e8e8e8;display:inline-block"></span>Étape active</div>
+  </div>`;
+  el.innerHTML = html;
 }
 
 // ─── VIEW SWITCHING ───
