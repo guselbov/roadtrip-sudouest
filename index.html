@@ -150,6 +150,16 @@ header { background: #fff; border-bottom: 1px solid var(--border); padding: 12px
 .tab { font-size: 11px; padding: 4px 10px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); background: #fff; font-family: inherit; font-weight: 600; color: var(--muted); }
 .tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 
+.cal-grid { display: grid; gap: 2px; min-width: 300px; }
+.cal-day-head { text-align: center; font-size: 9px; color: #aaa; padding-bottom: 3px; }
+.cal-row-label { font-size: 9px; font-weight: 600; color: #555; padding-right: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 3px; }
+.cal-cell { height: 22px; border-radius: 3px; background: #f5f4f0; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; color: #fff; cursor: default; position: relative; }
+.cal-cell.clickable { cursor: pointer; }
+.cal-cell.clickable:hover { outline: 2px solid #185fa5; outline-offset: -2px; }
+.cal-cell.picking { outline: 2px solid #BA7517; outline-offset: -2px; }
+.cal-admin-banner { display: flex; align-items: center; gap: 8px; background: var(--blue-light); border: 1px solid #b5d4f4; border-radius: 8px; padding: 8px 10px; margin-top: 8px; font-size: 11px; color: #185fa5; }
+.cal-admin-banner button { font-size: 11px; padding: 4px 9px; border-radius: 6px; cursor: pointer; border: none; font-family: inherit; font-weight: 600; }
+
 @media (max-width: 700px) {
   .main { grid-template-columns: 1fr; }
   #map { height: 280px; min-height: 280px; }
@@ -231,10 +241,19 @@ header { background: #fff; border-bottom: 1px solid var(--border); padding: 12px
       <option value="fete">🎉 Fête</option>
       <option value="depart">🔴 Départ / Retour</option>
     </select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">📅 Date d'arrivée</label>
+        <input class="modal-input" type="date" id="e-date-start" min="2026-07-08" max="2026-07-20" style="margin:0"/>
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">📅 Date de départ</label>
+        <input class="modal-input" type="date" id="e-date-end" min="2026-07-08" max="2026-07-20" style="margin:0"/>
+      </div>
+    </div>
     <input class="modal-input" id="e-surf" placeholder="Spots de surf (ex: Estagnots, Santocha)"/>
     <input class="modal-input" id="e-dodo" placeholder="Logement / nuit"/>
     <input class="modal-input" id="e-info" placeholder="Info pratique"/>
-    <input class="modal-input" id="e-dates" placeholder="Dates indicatives (ex: 9→11 juil.)"/>
     <div class="modal-error" id="etape-error">Remplis au moins id, nom, lat et lng.</div>
     <div class="modal-btns">
       <button class="btn btn-secondary" onclick="closeModal('modal-etape')">Annuler</button>
@@ -265,7 +284,10 @@ const POLL_INTERVAL = 15000; // ms
 
 // ─── STATE ───
 let STAGES = {};
-let dispos = []; // {id, nom, ville, date, msg, status, timestamp}
+// dispos: {id, nom, dateStart, dateEnd, msg, status, timestamp}
+// NOTE: a dispo no longer stores a "ville" — the stage(s) it belongs to are
+// derived dynamically from computeOverlaps(dateStart, dateEnd) against STAGES.
+let dispos = [];
 let isAdmin = false;
 let currentView = 'friend';
 let editingEtapeId = null;
@@ -274,6 +296,8 @@ let polylineLayer = null;
 let poteMarkers = {};
 let poteCount = {};
 
+// Admin calendar range-picking state (click arrivée, click départ, then save)
+let calPicking = null; // { stageId, start } while picking
 
 // ─── API HELPERS ───
 async function apiGet(action) {
@@ -313,7 +337,8 @@ async function loadEtapes() {
     obj[r.id] = {
       lat: parseFloat(r.lat), lng: parseFloat(r.lng), label: r.label,
       type: r.type, color: r.color || '#378ADD',
-      surf: r.surf || '—', dodo: r.dodo || '—', info: r.info || '', dates: r.dates || ''
+      surf: r.surf || '—', dodo: r.dodo || '—', info: r.info || '',
+      dates: r.dates || '', dateStart: r.dateStart || '', dateEnd: r.dateEnd || ''
     };
   });
   STAGES = obj;
@@ -322,7 +347,8 @@ async function loadEtapes() {
 async function loadDispos() {
   const raw = await apiGet('getDispos');
   dispos = raw.map(r => ({
-    id: String(r.id), nom: r.nom, ville: r.ville, date: r.date,
+    id: String(r.id), nom: r.nom,
+    dateStart: r.dateStart || '', dateEnd: r.dateEnd || '',
     msg: r.msg || '', status: r.status || 'pending', timestamp: r.timestamp
   }));
 }
@@ -347,7 +373,7 @@ async function fullSync(showLoading=true) {
     if (showLoading || currentView !== 'friend' || !document.getElementById('dispos-section')) {
       renderSidebar();
     } else {
-      // Still keep the "dispos confirmées" list and pending count fresh
+      // Still keep the "dispos confirmées" list and calendar fresh
       // without touching the form fields above it.
       updateDisposListOnly();
     }
@@ -396,18 +422,10 @@ function renderMap() {
           <div style="color:#27500a">🚗 ${s.dodo}</div>
           <div style="color:#999;margin-top:3px;font-size:10px">${s.info}</div>
         </div>
-        <button class="popup-btn" onclick="selectVille('${id}')">Sélectionner cette étape</button>
       `, { maxWidth: 230 })
       .bindTooltip(s.label, { direction:'top', offset:[0,-8] });
     mapMarkers[id] = m;
   });
-}
-
-function selectVille(id) {
-  const selEl = document.getElementById('inp-ville');
-  if (selEl) selEl.value = id;
-  checkSlotAvailability();
-  map.closePopup();
 }
 
 function zoomVille(id, e) {
@@ -415,28 +433,31 @@ function zoomVille(id, e) {
   map.setView([s.lat, s.lng], 12);
   document.querySelectorAll('.etape-btn').forEach(b => b.classList.remove('active'));
   if (e && e.currentTarget) e.currentTarget.classList.add('active');
-  const selEl = document.getElementById('inp-ville');
-  if (selEl) selEl.value = id;
-  checkSlotAvailability();
 }
 
 function clearPoteMarkers() { Object.values(poteMarkers).forEach(m => map.removeLayer(m)); poteMarkers = {}; poteCount = {}; }
 
-function addPoteMarker(d) {
-  const s = STAGES[d.ville]; if (!s) return;
-  poteCount[d.ville] = (poteCount[d.ville] || 0);
-  const off = poteCount[d.ville] * 0.013;
-  poteCount[d.ville]++;
-  const avatarColor = s.type === 'pote' ? '#D4537E' : s.color || '#1D9E75';
-  const m = L.marker([s.lat + off + 0.012, s.lng + off + 0.016], {
-    icon: L.divIcon({ className:'', html:`<div style="width:30px;height:30px;border-radius:50%;background:${avatarColor};border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${d.nom[0].toUpperCase()}</div>`, iconAnchor:[15,15], popupAnchor:[0,-15] })
-  }).addTo(map).bindPopup(`<b>${escHtml(d.nom)}</b><br>📍 ${s.label}<br>📅 ${formatDate(d.date)}${d.msg ? '<br><i style="color:#888">💬 ' + escHtml(d.msg) + '</i>' : ''}`);
-  poteMarkers[d.id] = m;
+// A dispo can now overlap several stages — place one marker per overlapping stage.
+function addPoteMarkersForDispo(d) {
+  const overlaps = computeOverlaps(d.dateStart, d.dateEnd);
+  overlaps.forEach(o => {
+    const s = STAGES[o.id]; if (!s) return;
+    poteCount[o.id] = (poteCount[o.id] || 0);
+    const off = poteCount[o.id] * 0.013;
+    poteCount[o.id]++;
+    const avatarColor = s.type === 'pote' ? '#D4537E' : s.color || '#1D9E75';
+    const fmtDays = o.days.map(x => parseInt(x.split('-')[2])).join(', ');
+    const key = d.id + '-' + o.id;
+    const m = L.marker([s.lat + off + 0.012, s.lng + off + 0.016], {
+      icon: L.divIcon({ className:'', html:`<div style="width:30px;height:30px;border-radius:50%;background:${avatarColor};border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${d.nom[0].toUpperCase()}</div>`, iconAnchor:[15,15], popupAnchor:[0,-15] })
+    }).addTo(map).bindPopup(`<b>${escHtml(d.nom)}</b><br>📍 ${s.label}<br>📅 ensemble : ${fmtDays} juil.${d.msg ? '<br><i style="color:#888">💬 ' + escHtml(d.msg) + '</i>' : ''}`);
+    poteMarkers[key] = m;
+  });
 }
 
 function refreshPoteMarkers() {
   clearPoteMarkers();
-  dispos.filter(d => d.status === 'approved').forEach(d => addPoteMarker(d));
+  dispos.filter(d => d.status === 'approved').forEach(d => addPoteMarkersForDispo(d));
 }
 
 // ─── ETAPES BAR ───
@@ -467,9 +488,8 @@ function renderFriendSidebar(sb) {
     disposSectionFriend() +
     calendarSectionFriend() +
     legendSection();
-  populateVilleSelect('inp-ville');
-  document.getElementById('inp-ville').addEventListener('change', checkSlotAvailability);
-  document.getElementById('inp-date').addEventListener('change', checkSlotAvailability);
+  document.getElementById('inp-date-start').addEventListener('change', checkSlotAvailability);
+  document.getElementById('inp-date-end').addEventListener('change', checkSlotAvailability);
   buildCalendarFriend();
 }
 
@@ -509,7 +529,7 @@ function planningSection(adminMode) {
   });
   if (!Object.keys(STAGES).length) items = `<div class="empty-state">Aucune étape — ajoute-en une !</div>`;
   return `<div class="sidebar-section">
-    <div class="section-title">🗓 Planning ${adminMode ? '<span style="color:var(--blue);text-transform:none;letter-spacing:0;font-size:10px">(cliquer ✏️ pour modifier)</span>' : 'indicatif'}</div>
+    <div class="section-title">🗓 Planning ${adminMode ? '<span style="color:var(--blue);text-transform:none;letter-spacing:0;font-size:10px">(cliquer ✏️ ou sur le calendrier pour modifier)</span>' : 'indicatif'}</div>
     <div class="planning">${items}</div>
   </div>`;
 }
@@ -520,7 +540,7 @@ function friendFormSection() {
     <div class="section-title">📅 Je suis dispo !</div>
     <div class="info-box">
       <strong>Comment ça marche ?</strong>
-      Choisis une étape et une date, laisse ton prénom et un message. Ta proposition sera <b>validée par l'admin</b> avant d'apparaître sur la carte pour tout le monde — ça évite les doublons sur un créneau ! 🗺️
+      Indique tes dates d'arrivée et de départ, l'app calcule automatiquement les étapes et les jours où on se croise. Ta proposition sera validée par l'admin avant d'apparaître. 🗺️
     </div>
     <div class="form-group">
       <label>Ton prénom</label>
@@ -528,77 +548,114 @@ function friendFormSection() {
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Étape</label>
-        <select id="inp-ville"><option value="">Choisir...</option></select>
+        <label>📅 Tu arrives le</label>
+        <input type="date" id="inp-date-start" min="2026-07-08" max="2026-07-20"/>
       </div>
       <div class="form-group">
-        <label>Date</label>
-        <input type="date" id="inp-date" min="2026-07-08" max="2026-07-20"/>
+        <label>📅 Tu repars le</label>
+        <input type="date" id="inp-date-end" min="2026-07-08" max="2026-07-20"/>
       </div>
     </div>
-    <div class="slot-taken" id="slot-taken"></div>
+    <div id="overlap-result" style="margin-bottom:8px"></div>
     <div class="form-group">
       <label>Message (optionnel)</label>
-      <input type="text" id="inp-msg" placeholder="ex : Dispo le soir, on fait un BBQ ?"/>
+      <input type="text" id="inp-msg" placeholder="ex : Je viens en voiture, je peux prendre quelqu'un !"/>
     </div>
     <button class="btn-submit green" id="btn-add-dispo" onclick="addDispo()">✓ Proposer ma dispo</button>
   </div>`;
 }
 
-function populateVilleSelect(id) {
-  const sel = document.getElementById(id);
-  if (!sel) return;
-  const val = sel.value;
-  sel.innerHTML = '<option value="">Choisir une étape...</option>';
-  Object.entries(STAGES).forEach(([k, s]) => {
+// Compute overlapping days between a pote's range and each stage's dateStart/dateEnd
+function computeOverlaps(dateStart, dateEnd) {
+  if (!dateStart || !dateEnd || dateStart > dateEnd) return [];
+  const results = [];
+  const pStart = new Date(dateStart);
+  const pEnd   = new Date(dateEnd);
+  Object.entries(STAGES).forEach(([id, s]) => {
     if (s.type === 'depart') return;
-    const opt = document.createElement('option');
-    opt.value = k; opt.textContent = s.label;
-    sel.appendChild(opt);
+    if (!s.dateStart || !s.dateEnd) return;
+    const sStart = new Date(s.dateStart);
+    const sEnd   = new Date(s.dateEnd);
+    const oStart = pStart > sStart ? pStart : sStart;
+    const oEnd   = pEnd   < sEnd   ? pEnd   : sEnd;
+    if (oStart <= oEnd) {
+      const days = [];
+      for (let d = new Date(oStart); d <= oEnd; d.setDate(d.getDate()+1)) {
+        days.push(new Date(d).toISOString().slice(0,10));
+      }
+      results.push({ id, label: s.label, color: s.color, days });
+    }
   });
-  if (val) sel.value = val;
+  return results;
 }
 
 function checkSlotAvailability() {
-  const ville = document.getElementById('inp-ville')?.value;
-  const date = document.getElementById('inp-date')?.value;
-  const el = document.getElementById('slot-taken');
+  const dateStart = document.getElementById('inp-date-start')?.value;
+  const dateEnd   = document.getElementById('inp-date-end')?.value;
+  const el = document.getElementById('overlap-result');
   if (!el) return;
-  if (ville && date) {
-    const taken = dispos.filter(d => d.ville === ville && d.date === date && d.status === 'approved');
-    el.classList.toggle('visible', taken.length > 0);
-    el.textContent = taken.length > 0
-      ? `ℹ️ ${taken.map(d=>d.nom).join(', ')} ${taken.length===1?'est':'sont'} déjà confirmé(e) ici ce jour-là.`
-      : '';
-  } else {
-    el.classList.remove('visible');
+
+  if (!dateStart || !dateEnd) { el.innerHTML = ''; return; }
+  if (dateStart > dateEnd) {
+    el.innerHTML = `<div style="background:#fff3f3;border:1px solid #fcc;border-radius:7px;padding:6px 9px;font-size:11px;color:#c44">⚠️ La date de départ doit être après l'arrivée.</div>`;
+    return;
   }
+
+  const overlaps = computeOverlaps(dateStart, dateEnd);
+  if (!overlaps.length) {
+    el.innerHTML = `<div style="background:#fff8e6;border:1px solid #fac775;border-radius:7px;padding:8px 10px;font-size:11px;color:#854f0b">
+      😕 Aucun chevauchement avec mon planning sur ces dates. Tu peux quand même envoyer ta dispo !
+    </div>`;
+    return;
+  }
+
+  let html = `<div style="background:#eaf3de;border:1px solid #c0dd97;border-radius:8px;padding:9px 11px;font-size:11px">
+    <div style="font-weight:700;color:#27500a;margin-bottom:6px">🎉 On se croise sur ces créneaux :</div>`;
+  overlaps.forEach(o => {
+    const fmtDays = o.days.map(d => parseInt(d.split('-')[2])).join(', ');
+    html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+      <span style="width:7px;height:7px;border-radius:50%;background:${o.color};flex-shrink:0;display:inline-block"></span>
+      <span style="font-weight:600;color:#1a1a1a">${o.label}</span>
+      <span style="color:#555">· ${fmtDays} juil.</span>
+    </div>`;
+  });
+  html += `</div>`;
+  el.innerHTML = html;
 }
 
-// ─── DISPOS — FRIEND VIEW (approved only + own pending shown subtly) ───
+// ─── DISPOS — FRIEND VIEW ───
+// Group approved dispos by which stage(s) they overlap. A single dispo can
+// appear under several stages if their range spans more than one étape.
 function disposSectionFriend() {
   const approved = dispos.filter(d => d.status === 'approved');
   const byVille = {};
-  approved.forEach(d => { if (!byVille[d.ville]) byVille[d.ville] = []; byVille[d.ville].push(d); });
+  approved.forEach(d => {
+    const overlaps = computeOverlaps(d.dateStart, d.dateEnd);
+    overlaps.forEach(o => {
+      if (!byVille[o.id]) byVille[o.id] = [];
+      byVille[o.id].push({ d, overlap: o });
+    });
+  });
 
   const typeColor = { pote:'#D4537E', surf:'#378ADD', fete:'#BA7517', depart:'#888' };
   const typeBg = { pote:'pink-bg', surf:'blue-bg', fete:'orange-bg', depart:'green-bg' };
 
   let html = '';
-  if (!approved.length) {
+  if (!Object.keys(byVille).length) {
     html = `<div class="empty-state">Aucune dispo confirmée pour l'instant 👋</div>`;
   } else {
     Object.entries(byVille).forEach(([ville, arr]) => {
       const s = STAGES[ville]; if (!s) return;
       html += `<div class="dispo-group-title">📍 ${s.label}</div>`;
-      arr.sort((a,b) => a.date.localeCompare(b.date)).forEach(d => {
+      arr.sort((a,b) => (a.d.dateStart||'').localeCompare(b.d.dateStart||'')).forEach(({d, overlap}) => {
         const col = typeColor[s.type] || '#1D9E75';
         const bg = typeBg[s.type] || 'green-bg';
+        const fmtDays = overlap.days.map(x => parseInt(x.split('-')[2])).join(', ');
         html += `<div class="dispo-item ${bg}">
           <div class="dispo-avatar" style="background:${col}">${d.nom[0].toUpperCase()}</div>
           <div style="flex:1">
             <div class="dispo-name">${escHtml(d.nom)}</div>
-            <div class="dispo-detail">📅 ${formatDate(d.date)}${d.msg ? '<br>💬 ' + escHtml(d.msg) : ''}</div>
+            <div class="dispo-detail">📅 ensemble : ${fmtDays} juil.${d.msg ? '<br>💬 ' + escHtml(d.msg) : ''}</div>
           </div>
         </div>`;
       });
@@ -607,7 +664,7 @@ function disposSectionFriend() {
   const pendingCount = dispos.filter(d => d.status === 'pending').length;
   return `<div class="sidebar-section" id="dispos-section">
     <div class="section-title">👥 Dispos confirmées <span class="count-pill">${approved.length}</span></div>
-    ${pendingCount ? `<p style="font-size:11px;color:#aaa;margin-bottom:8px">⏳ ${pendingCount} en attente de validation par l'admin</p>` : ''}
+    ${pendingCount ? `<p style="font-size:11px;color:#aaa;margin-bottom:8px">⏳ ${pendingCount} en attente de validation</p>` : ''}
     <div class="dispo-list" id="dispo-list">${html}</div>
   </div>`;
 }
@@ -616,7 +673,7 @@ function disposSectionFriend() {
 function adminAddEtapeInline() {
   return `<div class="sidebar-section" style="background:#f9f9fb">
     <div class="section-title">⚙️ Gestion des étapes</div>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Utilise les boutons ✏️ et 🗑 dans le planning ci-dessus, ou ajoute une nouvelle étape.</p>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Utilise les boutons ✏️ et 🗑 dans le planning, clique directement sur le calendrier pour changer les dates, ou ajoute une nouvelle étape.</p>
     <button class="btn-submit" onclick="showAddEtapeModal()" style="margin-top:0">+ Ajouter une étape</button>
   </div>`;
 }
@@ -637,22 +694,25 @@ function legendSection() {
 
 // ─── ADD DISPO (friend → goes to "pending") ───
 async function addDispo() {
-  const nom   = document.getElementById('inp-nom')?.value.trim();
-  const ville = document.getElementById('inp-ville')?.value;
-  const date  = document.getElementById('inp-date')?.value;
-  const msg   = document.getElementById('inp-msg')?.value.trim();
-  if (!nom || !ville || !date) { showToast('Remplis ton prénom, l\'étape et la date !', 'error'); return; }
+  const nom       = document.getElementById('inp-nom')?.value.trim();
+  const dateStart = document.getElementById('inp-date-start')?.value;
+  const dateEnd   = document.getElementById('inp-date-end')?.value;
+  const msg       = document.getElementById('inp-msg')?.value.trim();
+  if (!nom || !dateStart || !dateEnd) { showToast('Remplis ton prénom, ta date d\'arrivée et de départ !', 'error'); return; }
+  if (dateStart > dateEnd) { showToast('La date de départ doit être après l\'arrivée.', 'error'); return; }
 
   const btn = document.getElementById('btn-add-dispo');
   btn.disabled = true; btn.textContent = 'Envoi en cours...';
 
   try {
-    const result = await apiPost({ action:'addDispo', nom, ville, date, msg });
+    const result = await apiPost({ action:'addDispo', nom, dateStart, dateEnd, msg });
     if (result.success) {
       showToast(`✓ Proposition envoyée ! Elle sera visible une fois validée par l'admin.`, 'success');
       document.getElementById('inp-nom').value = '';
       document.getElementById('inp-msg').value = '';
-      document.getElementById('inp-date').value = '';
+      document.getElementById('inp-date-start').value = '';
+      document.getElementById('inp-date-end').value = '';
+      document.getElementById('overlap-result').innerHTML = '';
       await fullSync(false);
     } else {
       showToast('Erreur lors de l\'envoi, réessaie.', 'error');
@@ -677,11 +737,11 @@ async function validateDispo(id, status) {
   } catch (err) { showToast('Erreur de connexion.', 'error'); console.error(err); }
 }
 
-// ─── DELETE DISPO (admin only, for approved/rejected lists) ───
+// ─── DELETE DISPO (admin only) ───
 function confirmDeleteDispo(id) {
   const d = dispos.find(x => x.id === id);
   if (!d) return;
-  showConfirm(`Supprimer la dispo de ${d.nom} ?`, `${d.nom} — ${STAGES[d.ville]?.label || d.ville} — ${formatDate(d.date)}`, async () => {
+  showConfirm(`Supprimer la dispo de ${d.nom} ?`, `${d.nom} — du ${formatDate(d.dateStart)} au ${formatDate(d.dateEnd)}`, async () => {
     try {
       const result = await apiPost({ action:'deleteDispo', id });
       if (result.success) { showToast('Dispo supprimée', 'success'); await fullSync(false); }
@@ -694,7 +754,7 @@ function confirmDeleteDispo(id) {
 function showAddEtapeModal() {
   editingEtapeId = null;
   document.getElementById('modal-etape-title').textContent = '➕ Nouvelle étape';
-  ['e-id','e-label','e-lat','e-lng','e-surf','e-dodo','e-info','e-dates'].forEach(id => document.getElementById(id).value = '');
+  ['e-id','e-label','e-lat','e-lng','e-surf','e-dodo','e-info','e-date-start','e-date-end'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('e-type').value = 'surf';
   document.getElementById('e-id').disabled = false;
   document.getElementById('etape-error').classList.remove('show');
@@ -714,9 +774,19 @@ function editEtape(id) {
   document.getElementById('e-surf').value = s.surf || '';
   document.getElementById('e-dodo').value = s.dodo || '';
   document.getElementById('e-info').value = s.info || '';
-  document.getElementById('e-dates').value = s.dates || '';
+  document.getElementById('e-date-start').value = s.dateStart || '';
+  document.getElementById('e-date-end').value = s.dateEnd || '';
   document.getElementById('etape-error').classList.remove('show');
   showModal('modal-etape');
+}
+
+function fmtDatesLabel(dateStart, dateEnd) {
+  if (dateStart && dateEnd && dateStart !== dateEnd) {
+    return `${parseInt(dateStart.split('-')[2])}→${parseInt(dateEnd.split('-')[2])} juil.`;
+  } else if (dateStart) {
+    return `${parseInt(dateStart.split('-')[2])} juil.`;
+  }
+  return '';
 }
 
 async function saveEtape() {
@@ -728,13 +798,18 @@ async function saveEtape() {
 
   const typeColors = { surf:'#378ADD', pote:'#1D9E75', fete:'#BA7517', depart:'#E24B4A' };
   const type = document.getElementById('e-type').value;
+  const dateStart = document.getElementById('e-date-start').value;
+  const dateEnd   = document.getElementById('e-date-end').value;
+
   const payload = {
     action: 'saveEtape', id, label, lat, lng, type,
     color: typeColors[type] || '#378ADD',
     surf:  document.getElementById('e-surf').value.trim() || '—',
     dodo:  document.getElementById('e-dodo').value.trim() || '—',
     info:  document.getElementById('e-info').value.trim(),
-    dates: document.getElementById('e-dates').value.trim(),
+    dates: fmtDatesLabel(dateStart, dateEnd),
+    dateStart,
+    dateEnd,
   };
   try {
     const result = await apiPost(payload);
@@ -744,6 +819,18 @@ async function saveEtape() {
       await fullSync(false);
     } else showToast('Erreur lors de l\'enregistrement.', 'error');
   } catch (err) { showToast('Erreur de connexion.', 'error'); console.error(err); }
+}
+
+// Quick date-only update used by the clickable admin calendar — reuses the
+// existing saveEtape backend action so no server-side change is needed.
+async function saveEtapeDatesOnly(id, dateStart, dateEnd) {
+  const s = STAGES[id]; if (!s) return { success:false };
+  const payload = {
+    action: 'saveEtape', id, label: s.label, lat: s.lat, lng: s.lng, type: s.type,
+    color: s.color, surf: s.surf, dodo: s.dodo, info: s.info,
+    dates: fmtDatesLabel(dateStart, dateEnd), dateStart, dateEnd,
+  };
+  return apiPost(payload);
 }
 
 function confirmDeleteEtape(id) {
@@ -757,7 +844,7 @@ function confirmDeleteEtape(id) {
   }, 'Supprimer');
 }
 
-// ─── CALENDAR (friend) ───
+// ─── CALENDAR (friend, read-only) ───
 function calendarSectionFriend() {
   return `<div class="sidebar-section" id="cal-friend-section">
     <div class="section-title">📆 Calendrier des dispos</div>
@@ -765,38 +852,36 @@ function calendarSectionFriend() {
   </div>`;
 }
 
+const CAL_DAYS = Array.from({length:13}, (_,i) => 8+i);
+
+function calHeaderRow() {
+  let html = `<div class="cal-day-head"></div>`;
+  CAL_DAYS.forEach(d => { html += `<div class="cal-day-head">${d}</div>`; });
+  return html;
+}
+
 function buildCalendarFriend() {
   const el = document.getElementById('cal-friend-grid');
   if (!el) return;
-  const days = Array.from({length:13}, (_,i) => 8+i);
   const stageList = Object.entries(STAGES).filter(([,s]) => s.type !== 'depart');
   const approved = dispos.filter(d => d.status === 'approved');
 
-  let html = `<div style="display:grid;grid-template-columns:52px repeat(13,1fr);gap:2px;min-width:300px">`;
-  // Header row
-  html += `<div style="font-size:9px;color:#aaa"></div>`;
-  days.forEach(d => {
-    html += `<div style="text-align:center;font-size:9px;color:#aaa;padding-bottom:3px">${d}</div>`;
-  });
-  // Stage rows
+  let html = `<div class="cal-grid" style="grid-template-columns:52px repeat(13,1fr)">`;
+  html += calHeaderRow();
   stageList.forEach(([id, s]) => {
-    html += `<div style="font-size:9px;font-weight:600;color:#555;padding-right:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px">
-      <span style="width:6px;height:6px;border-radius:50%;background:${s.color};flex-shrink:0;display:inline-block"></span>${s.label.split('/')[0].trim()}
-    </div>`;
-    days.forEach(d => {
+    html += `<div class="cal-row-label"><span style="width:6px;height:6px;border-radius:50%;background:${s.color};flex-shrink:0;display:inline-block"></span>${s.label.split('/')[0].trim()}</div>`;
+    CAL_DAYS.forEach(d => {
       const dateStr = `2026-07-${String(d).padStart(2,'0')}`;
-      const potes = approved.filter(dp => dp.ville === id && dp.date === dateStr);
+      const potes = approved.filter(dp => computeOverlaps(dp.dateStart, dp.dateEnd).some(o => o.id === id && o.days.includes(dateStr)));
       const isInRange = stageInRange(s, d);
-      let cell = '';
       if (potes.length) {
         const initials = potes.map(p => p.nom[0].toUpperCase()).join('');
-        cell = `<div title="${potes.map(p=>p.nom).join(', ')}" style="height:20px;border-radius:3px;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;cursor:default">${initials.slice(0,2)}</div>`;
+        html += `<div class="cal-cell" style="background:${s.color}" title="${potes.map(p=>p.nom).join(', ')}">${initials.slice(0,2)}</div>`;
       } else if (isInRange) {
-        cell = `<div style="height:20px;border-radius:3px;background:${s.color};opacity:0.15"></div>`;
+        html += `<div class="cal-cell" style="background:${s.color};opacity:0.15"></div>`;
       } else {
-        cell = `<div style="height:20px;border-radius:3px;background:#f5f4f0"></div>`;
+        html += `<div class="cal-cell"></div>`;
       }
-      html += cell;
     });
   });
   html += `</div>`;
@@ -805,10 +890,16 @@ function buildCalendarFriend() {
 }
 
 function stageInRange(s, day) {
+  if (s.dateStart && s.dateEnd) {
+    const start = parseInt(s.dateStart.split('-')[2]);
+    const end   = parseInt(s.dateEnd.split('-')[2]);
+    return day >= start && day <= end;
+  }
+  if (s.dateStart) return day === parseInt(s.dateStart.split('-')[2]);
   if (!s.dates) return false;
   const m = s.dates.match(/(\d+)→(\d+)/);
   if (m) return day >= parseInt(m[1]) && day <= parseInt(m[2]);
-  const single = s.dates.match(/(\d+)\s*juil/);
+  const single = s.dates.match(/^(\d+)/);
   if (single) return day === parseInt(single[1]);
   return false;
 }
@@ -817,11 +908,7 @@ function stageInRange(s, day) {
 function adminDashboard() {
   const pending  = dispos.filter(d => d.status === 'pending');
   const approved = dispos.filter(d => d.status === 'approved');
-  const rejected = dispos.filter(d => d.status === 'rejected');
   const poteNames = [...new Set(approved.map(d => d.nom))];
-
-  const days = Array.from({length:13}, (_,i) => 8+i);
-  const stageList = Object.entries(STAGES).filter(([,s]) => s.type !== 'depart');
 
   // Stat cards
   let stats = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
@@ -843,25 +930,30 @@ function adminDashboard() {
     </div>
   </div>`;
 
-  // Calendar grid (placeholder, filled by buildCalendarAdmin)
+  // Calendar grid — clickable to set stage dates directly (filled by buildCalendarAdmin)
   let cal = `<div style="background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:12px;margin-bottom:12px">
-    <div style="font-size:11px;font-weight:700;color:#444;letter-spacing:.4px;text-transform:uppercase;margin-bottom:10px">📆 Calendrier</div>
+    <div style="font-size:11px;font-weight:700;color:#444;letter-spacing:.4px;text-transform:uppercase;margin-bottom:4px">📆 Calendrier</div>
+    <div style="font-size:11px;color:#aaa;margin-bottom:10px">Clique une date d'arrivée puis une date de départ sur une ligne pour fixer les dates de l'étape.</div>
     <div id="cal-admin-grid" style="overflow-x:auto"></div>
+    <div id="cal-admin-banner-slot"></div>
   </div>`;
 
-  // Pending validations
+  // Pending validations — show which stage(s) each request overlaps
   let pendingHtml = '';
   if (pending.length) {
     pendingHtml = `<div style="background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:12px;margin-bottom:12px">
       <div style="font-size:11px;font-weight:700;color:#444;letter-spacing:.4px;text-transform:uppercase;margin-bottom:10px">⏳ En attente de validation (${pending.length})</div>
       <div style="display:flex;flex-direction:column;gap:7px">`;
     pending.sort((a,b) => (b.timestamp||'').localeCompare(a.timestamp||'')).forEach(d => {
-      const s = STAGES[d.ville];
+      const overlaps = computeOverlaps(d.dateStart, d.dateEnd);
+      const stagesTxt = overlaps.length
+        ? overlaps.map(o => o.label).join(', ')
+        : 'aucun chevauchement avec le planning actuel';
       pendingHtml += `<div style="display:flex;align-items:center;gap:8px;background:#fff8e6;border:1px solid #fac775;border-radius:8px;padding:9px 10px">
         <div style="width:26px;height:26px;border-radius:50%;background:#BA7517;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0">${d.nom[0].toUpperCase()}</div>
         <div style="flex:1">
           <div style="font-weight:600;font-size:12px">${escHtml(d.nom)}</div>
-          <div style="font-size:11px;color:#555">📍 ${s?s.label:d.ville} · 📅 ${formatDate(d.date)}${d.msg?'<br>💬 '+escHtml(d.msg):''}</div>
+          <div style="font-size:11px;color:#555">📅 du ${formatDate(d.dateStart)} au ${formatDate(d.dateEnd)}<br>📍 ${stagesTxt}${d.msg?'<br>💬 '+escHtml(d.msg):''}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:3px">
           <button class="vbtn vbtn-ok" onclick="validateDispo('${d.id}','approved')">✓ Valider</button>
@@ -879,13 +971,14 @@ function adminDashboard() {
     approvedHtml += `<div style="font-size:12px;color:#aaa;font-style:italic;text-align:center;padding:10px 0">Aucune dispo validée</div>`;
   } else {
     approvedHtml += `<div style="display:flex;flex-direction:column;gap:5px">`;
-    approved.sort((a,b)=>a.date.localeCompare(b.date)).forEach(d => {
-      const s = STAGES[d.ville];
-      const col = s ? s.color : '#1D9E75';
+    approved.sort((a,b)=>(a.dateStart||'').localeCompare(b.dateStart||'')).forEach(d => {
+      const overlaps = computeOverlaps(d.dateStart, d.dateEnd);
+      const col = overlaps.length ? overlaps[0].color : '#1D9E75';
+      const stagesTxt = overlaps.length ? overlaps.map(o => o.label).join(', ') : 'aucune étape en commun';
       approvedHtml += `<div style="display:flex;align-items:center;gap:7px;padding:6px 8px;background:#eaf3de;border:1px solid #c0dd97;border-radius:7px">
         <div style="width:22px;height:22px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${d.nom[0].toUpperCase()}</div>
         <div style="flex:1;font-size:11px;font-weight:600">${escHtml(d.nom)}</div>
-        <div style="font-size:10px;color:#555">${s?s.label:d.ville} · ${formatDate(d.date)}</div>
+        <div style="font-size:10px;color:#555">${stagesTxt} · ${formatDate(d.dateStart)}→${formatDate(d.dateEnd)}</div>
         <button class="dispo-delete" onclick="confirmDeleteDispo('${d.id}')" title="Supprimer">×</button>
       </div>`;
     });
@@ -899,45 +992,38 @@ function adminDashboard() {
   </div>`;
 }
 
+// Admin calendar: click-to-select a date range directly on the grid to set
+// a stage's dateStart/dateEnd, instead of typing into the modal.
 function buildCalendarAdmin() {
   const el = document.getElementById('cal-admin-grid');
   if (!el) return;
-  const days = Array.from({length:13}, (_,i) => 8+i);
   const stageList = Object.entries(STAGES).filter(([,s]) => s.type !== 'depart');
   const approved = dispos.filter(d => d.status === 'approved');
   const pending  = dispos.filter(d => d.status === 'pending');
 
-  let html = `<div style="display:grid;grid-template-columns:52px repeat(13,1fr);gap:2px;min-width:300px">`;
-  // Header
-  html += `<div style="font-size:9px;color:#aaa"></div>`;
-  days.forEach(d => {
-    html += `<div style="text-align:center;font-size:9px;color:#aaa;padding-bottom:3px">${d}</div>`;
-  });
-  // Rows
+  let html = `<div class="cal-grid" style="grid-template-columns:52px repeat(13,1fr)">`;
+  html += calHeaderRow();
   stageList.forEach(([id, s]) => {
-    html += `<div style="font-size:9px;font-weight:600;color:#555;padding-right:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px">
-      <span style="width:6px;height:6px;border-radius:50%;background:${s.color};flex-shrink:0;display:inline-block"></span>${s.label.split('/')[0].trim()}
-    </div>`;
-    days.forEach(d => {
+    html += `<div class="cal-row-label"><span style="width:6px;height:6px;border-radius:50%;background:${s.color};flex-shrink:0;display:inline-block"></span>${s.label.split('/')[0].trim()}</div>`;
+    CAL_DAYS.forEach(d => {
       const dateStr = `2026-07-${String(d).padStart(2,'0')}`;
-      const app = approved.filter(dp => dp.ville === id && dp.date === dateStr);
-      const pend = pending.filter(dp => dp.ville === id && dp.date === dateStr);
+      const app  = approved.filter(dp => computeOverlaps(dp.dateStart, dp.dateEnd).some(o => o.id === id && o.days.includes(dateStr)));
+      const pend = pending.filter(dp => computeOverlaps(dp.dateStart, dp.dateEnd).some(o => o.id === id && o.days.includes(dateStr)));
       const isInRange = stageInRange(s, d);
-      let cell = '';
+      const picking = calPicking && calPicking.stageId === id && calPicking.start === d;
+      let cellStyle = '', cellContent = '', cellClass = 'cal-cell clickable';
+      if (picking) cellClass += ' picking';
       if (app.length) {
         const initials = app.map(p => p.nom[0].toUpperCase()).join('');
-        cell = `<div title="${app.map(p=>p.nom).join(', ')}" style="height:20px;border-radius:3px;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;cursor:default;position:relative">
-          ${initials.slice(0,2)}
-          ${pend.length ? `<span style="position:absolute;top:-2px;right:-2px;width:6px;height:6px;border-radius:50%;background:#BA7517;border:1px solid #fff"></span>` : ''}
-        </div>`;
+        cellStyle = `background:${s.color}`;
+        cellContent = initials.slice(0,2) + (pend.length ? `<span style="position:absolute;top:-2px;right:-2px;width:6px;height:6px;border-radius:50%;background:#BA7517;border:1px solid #fff"></span>` : '');
       } else if (pend.length) {
-        cell = `<div title="${pend.map(p=>p.nom+' (en attente)').join(', ')}" style="height:20px;border-radius:3px;background:#fac775;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#854f0b;cursor:default">${pend[0].nom[0].toUpperCase()}</div>`;
+        cellStyle = `background:#fac775;color:#854f0b`;
+        cellContent = pend[0].nom[0].toUpperCase();
       } else if (isInRange) {
-        cell = `<div style="height:20px;border-radius:3px;background:${s.color};opacity:0.15"></div>`;
-      } else {
-        cell = `<div style="height:20px;border-radius:3px;background:#f5f4f0"></div>`;
+        cellStyle = `background:${s.color};opacity:0.35`;
       }
-      html += cell;
+      html += `<div class="${cellClass}" style="${cellStyle}" onclick="onCalAdminCellClick('${id}',${d})" title="${d} juillet — ${s.label}">${cellContent}</div>`;
     });
   });
   html += `</div>`;
@@ -947,11 +1033,68 @@ function buildCalendarAdmin() {
     <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#aaa"><span style="width:10px;height:10px;border-radius:2px;background:#e8e8e8;display:inline-block"></span>Étape active</div>
   </div>`;
   el.innerHTML = html;
+  renderCalAdminBanner();
+}
+
+function onCalAdminCellClick(stageId, day) {
+  if (!calPicking || calPicking.stageId !== stageId) {
+    // Start a new picking session on this row
+    calPicking = { stageId, start: day, end: null };
+  } else if (calPicking.end === null) {
+    // Second click on the same row → set the end (allow clicking before start too)
+    calPicking.end = day;
+    if (calPicking.end < calPicking.start) {
+      const tmp = calPicking.start; calPicking.start = calPicking.end; calPicking.end = tmp;
+    }
+  } else {
+    // Already had a full range picked → start over
+    calPicking = { stageId, start: day, end: null };
+  }
+  buildCalendarAdmin();
+}
+
+function renderCalAdminBanner() {
+  const slot = document.getElementById('cal-admin-banner-slot');
+  if (!slot) return;
+  if (!calPicking) { slot.innerHTML = ''; return; }
+  const s = STAGES[calPicking.stageId];
+  if (calPicking.end === null) {
+    slot.innerHTML = `<div class="cal-admin-banner">
+      <span>📍 <b>${s.label}</b> — arrivée le ${calPicking.start} juillet. Clique la date de départ.</span>
+      <button style="background:#eee;color:#666" onclick="cancelCalPicking()">Annuler</button>
+    </div>`;
+  } else {
+    slot.innerHTML = `<div class="cal-admin-banner">
+      <span>📍 <b>${s.label}</b> — du ${calPicking.start} au ${calPicking.end} juillet</span>
+      <button style="background:#eee;color:#666" onclick="cancelCalPicking()">Annuler</button>
+      <button style="background:#378ADD;color:#fff" onclick="confirmCalPicking()">Enregistrer les dates</button>
+    </div>`;
+  }
+}
+
+function cancelCalPicking() { calPicking = null; buildCalendarAdmin(); }
+
+async function confirmCalPicking() {
+  if (!calPicking || calPicking.end === null) return;
+  const id = calPicking.stageId;
+  const dateStart = `2026-07-${String(calPicking.start).padStart(2,'0')}`;
+  const dateEnd   = `2026-07-${String(calPicking.end).padStart(2,'0')}`;
+  try {
+    const result = await saveEtapeDatesOnly(id, dateStart, dateEnd);
+    if (result.success) {
+      showToast(`✓ Dates de "${STAGES[id].label}" mises à jour`, 'success');
+      calPicking = null;
+      await fullSync(false);
+    } else {
+      showToast('Erreur lors de l\'enregistrement.', 'error');
+    }
+  } catch (err) { showToast('Erreur de connexion.', 'error'); console.error(err); }
 }
 
 // ─── VIEW SWITCHING ───
 function setView(v) {
   currentView = v;
+  calPicking = null;
   document.getElementById('btn-friend').classList.toggle('active', v === 'friend');
   document.getElementById('btn-admin').classList.toggle('active', v === 'admin');
   document.getElementById('admin-bar').classList.toggle('show', v === 'admin');
