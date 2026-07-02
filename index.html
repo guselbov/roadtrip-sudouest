@@ -332,7 +332,10 @@ async function loadEtapes() {
 async function loadDispos() {
   const raw = await apiGet('getDispos');
   dispos = raw.map(r => ({
-    id: String(r.id), nom: r.nom, ville: r.ville, date: r.date,
+    id: String(r.id), nom: r.nom, ville: r.ville || '', date: r.date,
+    dateStart: r.dateStart || '', dateEnd: r.dateEnd || '',
+    overlapStart: r.overlapStart || '', overlapEnd: r.overlapEnd || '',
+    noOverlap: r.noOverlap || '',
     msg: r.msg || '', status: r.status || 'pending', timestamp: r.timestamp
   }));
 }
@@ -414,8 +417,8 @@ function renderMap() {
 }
 
 function selectVille(id) {
-  const selEl = document.getElementById('inp-ville');
-  if (selEl) selEl.value = id;
+  // highlight the stage on the bar
+  document.querySelectorAll('.etape-btn').forEach(b => b.classList.remove('active'));
   checkSlotAvailability();
   map.closePopup();
 }
@@ -425,8 +428,6 @@ function zoomVille(id, e) {
   map.setView([s.lat, s.lng], 12);
   document.querySelectorAll('.etape-btn').forEach(b => b.classList.remove('active'));
   if (e && e.currentTarget) e.currentTarget.classList.add('active');
-  const selEl = document.getElementById('inp-ville');
-  if (selEl) selEl.value = id;
   checkSlotAvailability();
 }
 
@@ -477,9 +478,8 @@ function renderFriendSidebar(sb) {
     disposSectionFriend() +
     calendarSectionFriend() +
     legendSection();
-  populateVilleSelect('inp-ville');
-  document.getElementById('inp-ville').addEventListener('change', checkSlotAvailability);
-  document.getElementById('inp-date').addEventListener('change', checkSlotAvailability);
+  document.getElementById('inp-date-start').addEventListener('change', checkSlotAvailability);
+  document.getElementById('inp-date-end').addEventListener('change', checkSlotAvailability);
   buildCalendarFriend();
 }
 
@@ -705,26 +705,66 @@ function legendSection() {
 
 // ─── ADD DISPO (friend → goes to "pending") ───
 async function addDispo() {
-  const nom   = document.getElementById('inp-nom')?.value.trim();
-  const ville = document.getElementById('inp-ville')?.value;
-  const date  = document.getElementById('inp-date')?.value;
-  const msg   = document.getElementById('inp-msg')?.value.trim();
-  if (!nom || !ville || !date) { showToast('Remplis ton prénom, l\'étape et la date !', 'error'); return; }
+  const nom       = document.getElementById('inp-nom')?.value.trim();
+  const dateStart = document.getElementById('inp-date-start')?.value;
+  const dateEnd   = document.getElementById('inp-date-end')?.value;
+  const msg       = document.getElementById('inp-msg')?.value.trim();
+
+  if (!nom) { showToast('Remplis ton prénom !', 'error'); return; }
+  if (!dateStart || !dateEnd) { showToast('Choisis tes dates d\'arrivée et de départ !', 'error'); return; }
+  if (dateStart > dateEnd) { showToast('La date de départ doit être après l\'arrivée !', 'error'); return; }
+
+  // Compute overlaps to find which stages the pote crosses
+  const overlaps = computeOverlaps(dateStart, dateEnd);
+
+  // One dispo entry per overlapping stage (or one generic if none)
+  const entries = overlaps.length
+    ? overlaps.map(o => ({ ville: o.id, overlapDays: o.days }))
+    : [{ ville: '', overlapDays: [] }]; // no match — still send with ⚠️
 
   const btn = document.getElementById('btn-add-dispo');
   btn.disabled = true; btn.textContent = 'Envoi en cours...';
 
   try {
-    const result = await apiPost({ action:'addDispo', nom, ville, date, msg });
-    if (result.success) {
-      showToast(`✓ Proposition envoyée ! Elle sera visible une fois validée par l'admin.`, 'success');
-      document.getElementById('inp-nom').value = '';
-      document.getElementById('inp-msg').value = '';
-      document.getElementById('inp-date').value = '';
-      await fullSync(false);
-    } else {
-      showToast('Erreur lors de l\'envoi, réessaie.', 'error');
+    for (const entry of entries) {
+      await apiPost({
+        action: 'addDispo',
+        nom, msg,
+        ville: entry.ville,
+        date: dateStart, // kept for backward compat display
+        dateStart, dateEnd,
+        overlapStart: entry.overlapDays[0] || '',
+        overlapEnd:   entry.overlapDays[entry.overlapDays.length-1] || '',
+        noOverlap:    overlaps.length === 0 ? '1' : ''
+      });
     }
+
+    // Friendly confirmation message
+    let confirmMsg = '';
+    if (!overlaps.length) {
+      confirmMsg = `✓ Dispo envoyée ! Aucune étape ne correspond exactement à tes dates — l'admin verra ça.`;
+    } else if (overlaps.length === 1) {
+      const days = overlaps[0].days.map(d => parseInt(d.split('-')[2]));
+      const label = overlaps[0].label;
+      if (days.length === 1) {
+        confirmMsg = `✓ Envoyé ! On se croise le ${days[0]} juil. à ${label} 🤙`;
+      } else {
+        confirmMsg = `✓ Envoyé ! On se croise du ${days[0]} au ${days[days.length-1]} juil. à ${label} 🤙`;
+      }
+    } else {
+      const lieux = overlaps.map(o => o.label).join(', ');
+      confirmMsg = `✓ Envoyé ! On se croise à ${lieux} 🤙`;
+    }
+    showToast(confirmMsg, 'success');
+
+    // Reset form
+    document.getElementById('inp-nom').value = '';
+    document.getElementById('inp-date-start').value = '';
+    document.getElementById('inp-date-end').value = '';
+    document.getElementById('inp-msg').value = '';
+    document.getElementById('overlap-result').innerHTML = '';
+
+    await fullSync(false);
   } catch (err) {
     showToast('Erreur de connexion au Sheet.', 'error');
     console.error(err);
@@ -952,11 +992,20 @@ function adminDashboard() {
       <div style="display:flex;flex-direction:column;gap:7px">`;
     pending.sort((a,b) => (b.timestamp||'').localeCompare(a.timestamp||'')).forEach(d => {
       const s = STAGES[d.ville];
+      const villeLabel = s ? s.label : (d.ville || '—');
+      const dateRange = d.dateStart && d.dateEnd
+        ? `${parseInt(d.dateStart.split('-')[2])}→${parseInt(d.dateEnd.split('-')[2])} juil.`
+        : formatDate(d.date);
+      const overlapInfo = d.overlapStart && d.overlapEnd
+        ? `<span style="color:#27500a;font-weight:600"> · ensemble : ${parseInt(d.overlapStart.split('-')[2])}→${parseInt(d.overlapEnd.split('-')[2])} juil.</span>`
+        : '';
+      const noOvWarning = d.noOverlap === '1'
+        ? `<span style="color:#c44"> ⚠️ Aucune étape en commun</span>` : '';
       pendingHtml += `<div style="display:flex;align-items:center;gap:8px;background:#fff8e6;border:1px solid #fac775;border-radius:8px;padding:9px 10px">
         <div style="width:26px;height:26px;border-radius:50%;background:#BA7517;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0">${d.nom[0].toUpperCase()}</div>
         <div style="flex:1">
-          <div style="font-weight:600;font-size:12px">${escHtml(d.nom)}</div>
-          <div style="font-size:11px;color:#555">📍 ${s?s.label:d.ville} · 📅 ${formatDate(d.date)}${d.msg?'<br>💬 '+escHtml(d.msg):''}</div>
+          <div style="font-weight:600;font-size:12px">${escHtml(d.nom)} ${noOvWarning}</div>
+          <div style="font-size:11px;color:#555">📍 ${villeLabel} · 📅 ${dateRange}${overlapInfo}${d.msg?'<br>💬 '+escHtml(d.msg):''}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:3px">
           <button class="vbtn vbtn-ok" onclick="validateDispo('${d.id}','approved')">✓ Valider</button>
@@ -974,13 +1023,19 @@ function adminDashboard() {
     approvedHtml += `<div style="font-size:12px;color:#aaa;font-style:italic;text-align:center;padding:10px 0">Aucune dispo validée</div>`;
   } else {
     approvedHtml += `<div style="display:flex;flex-direction:column;gap:5px">`;
-    approved.sort((a,b)=>a.date.localeCompare(b.date)).forEach(d => {
+    approved.sort((a,b)=>(a.dateStart||a.date||'').localeCompare(b.dateStart||b.date||'')).forEach(d => {
       const s = STAGES[d.ville];
       const col = s ? s.color : '#1D9E75';
+      const dateRange = d.dateStart && d.dateEnd
+        ? `${parseInt(d.dateStart.split('-')[2])}→${parseInt(d.dateEnd.split('-')[2])} juil.`
+        : formatDate(d.date);
+      const overlapInfo = d.overlapStart && d.overlapEnd
+        ? ` · ensemble ${parseInt(d.overlapStart.split('-')[2])}→${parseInt(d.overlapEnd.split('-')[2])} juil.`
+        : '';
       approvedHtml += `<div style="display:flex;align-items:center;gap:7px;padding:6px 8px;background:#eaf3de;border:1px solid #c0dd97;border-radius:7px">
         <div style="width:22px;height:22px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${d.nom[0].toUpperCase()}</div>
         <div style="flex:1;font-size:11px;font-weight:600">${escHtml(d.nom)}</div>
-        <div style="font-size:10px;color:#555">${s?s.label:d.ville} · ${formatDate(d.date)}</div>
+        <div style="font-size:10px;color:#555">${s?s.label:'?'} · ${dateRange}${overlapInfo}</div>
         <button class="dispo-delete" onclick="confirmDeleteDispo('${d.id}')" title="Supprimer">×</button>
       </div>`;
     });
