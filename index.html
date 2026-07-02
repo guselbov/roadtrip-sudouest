@@ -17,7 +17,7 @@
   --text:#1a1a1a;--muted:#666;--radius:8px;
 }
 body{font-family:'Inter',-apple-system,sans-serif;background:var(--grey);color:var(--text);font-size:13px}
- 
+
 /* ── MODALS ── */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:10000}
 .overlay.show{display:flex}
@@ -33,7 +33,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--grey);color:v
 .btn-ok{background:var(--blue);color:#fff;flex:1}.btn-ok:hover{background:var(--blue-dark)}
 .btn-cancel{background:var(--grey);color:var(--muted)}.btn-cancel:hover{background:#eee}
 .btn-del{background:#fff2f2;color:var(--red);border:1px solid #fdd;flex:1}.btn-del:hover{background:#fdd}
- 
+
 /* ── HEADER ── */
 header{background:#fff;border-bottom:1px solid var(--border);padding:11px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:900}
 .htitle{font-size:15px;font-weight:700}
@@ -47,20 +47,20 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:11px 20px;d
 .vtoggle{display:flex;background:var(--grey);border-radius:var(--radius);padding:3px;border:1px solid var(--border)}
 .vbtn{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:none;color:var(--muted);font-family:inherit;transition:all .15s}
 .vbtn.on{background:#fff;color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.1)}
- 
+
 /* ── SYNC BAR ── */
 .syncbar{background:#fff;border-bottom:1px solid var(--border);padding:5px 16px;font-size:11px;color:#999;display:flex;align-items:center;gap:6px}
 .sdot{width:6px;height:6px;border-radius:50%;background:#1D9E75;flex-shrink:0}
 .sdot.spin{background:#BA7517;animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
- 
+
 /* ── ETAPES BAR ── */
 .ebar{background:#fff;border-bottom:1px solid var(--border);padding:7px 14px;display:flex;gap:5px;flex-wrap:wrap;align-items:center}
 .elbl{font-size:11px;color:#aaa;margin-right:2px}
 .ebtn{font-size:12px;padding:3px 9px;border-radius:20px;border:1px solid var(--border);background:#fff;cursor:pointer;font-family:inherit;transition:all .15s}
 .ebtn:hover{background:var(--blue-light);border-color:var(--blue);color:var(--blue-dark)}
 .ebtn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
- 
+
 /* ── FRIEND LAYOUT: map + sidebar ── */
 .flayout{display:grid;grid-template-columns:1fr 350px;height:calc(100vh - 112px)}
 #map{width:100%;height:100%}
@@ -69,17 +69,17 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:11px 20px;d
 .sec{padding:14px 16px;border-bottom:1px solid #eee}
 .sttl{font-size:10px;font-weight:700;color:#444;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px}
 .cpill{font-size:10px;background:#eee;color:#666;padding:1px 7px;border-radius:10px;font-weight:400;text-transform:none;letter-spacing:0}
- 
+
 /* ── ADMIN LAYOUT: full dashboard ── */
 .alayout{padding:20px;max-width:900px;margin:0 auto;width:100%}
 .adash{display:grid;gap:16px}
- 
+
 /* stat cards */
 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .stat-card{background:#fff;border-radius:10px;padding:14px 16px;border:1px solid var(--border)}
 .stat-lbl{font-size:11px;color:var(--muted);margin-bottom:4px}
 .stat-val{font-size:26px;font-weight:700}
- 
+
 /* panels */
 .panel{background:#fff;border-radius:10px;border:1px solid var(--border);overflow:hidden}
 .panel-hd{padding:12px 16px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between}
@@ -87,7 +87,7 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:11px 20px;d
 .panel-body{padding:14px 16px}
 .panel-add{font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;border:none;font-family:inherit;font-weight:600;background:var(--blue-light);color:var(--blue-dark);transition:all .15s}
 .panel-add:hover{background:var(--blue);color:#fff}
- 
+
 /* pending cards */
 .pcard{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:var(--radius);margin-bottom:8px;border:1px solid #fac775;background:#fff8e6}
 .pcard:last-child{margin-bottom:0}
@@ -101,12 +101,12 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:11px 20px;d
 .vok:hover{background:#b8e89c}
 .vno{font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;border:none;font-family:inherit;font-weight:600;background:#fdd;color:#a32d2d;white-space:nowrap}
 .vno:hover{background:#fbb}
- 
+
 /* approved rows */
 .arow{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--radius);margin-bottom:5px;background:var(--green-light);border:1px solid #c0dd97}
 .arow:last-child{margin-bottom:0}
 .adel{background:none;border:none;cursor:pointer;color:#ccc;font-size:16px;line-height:1;margin-left:auto}.adel:hover{color:var(--red)}
- 
+
 /* etapes table */
 .etable{width:100%;border-collapse:collapse}
 .etable th{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.4px;padding:6px 10px;text-align:left;border-bottom:1px solid #eee}
@@ -117,11 +117,11 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:11px 20px;d
 .ebtn-sm{font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer;border:none;font-family:inherit;font-weight:500}
 .ebtn-edit{background:#eee;color:#444}.ebtn-edit:hover{background:var(--blue-light);color:var(--blue-dark)}
 .ebtn-del{background:#fff2f2;color:var(--red)}.ebtn-del:hover{background:#fdd}
- 
+
 /* calendar grid */
 .calgrid{display:grid;gap:2px;overflow-x:auto}
 .calfriendgrid{font-size:10px}
- 
+
 /* friend sections */
 .plan-item{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:var(--radius);font-size:12px;margin-bottom:3px}
 .plan-item.surf{background:var(--blue-light)}.plan-item.pote{background:var(--green-light)}
@@ -130,7 +130,7 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:11px 20px;d
 .pinfo{flex:1}.pv{font-weight:600}.pd{color:var(--muted);margin-top:1px;font-size:11px}
 .pdate{color:var(--blue-dark);font-size:11px;font-weight:600;margin-top:1px}
 .pnote{color:#999;font-style:italic;font-size:10px;margin-top:1px}
- 
+
 .fg{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
 .fg label{font-size:11px;color:var(--muted);font-weight:600}
 .fg input,.fg select{padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:12px;outline:none;font-family:inherit;background:#fff}
@@ -153,15 +153,15 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:11px 20px;d
 .leg{display:flex;flex-direction:column;gap:4px}
 .li{display:flex;align-items:center;gap:6px;font-size:11px;color:#555}
 .ld{width:9px;height:9px;border-radius:50%;flex-shrink:0}
- 
+
 /* toast */
 #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:9px 18px;border-radius:22px;font-size:12px;font-weight:500;opacity:0;transition:opacity .3s;pointer-events:none;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.25)}
 #toast.show{opacity:1}#toast.ok{background:var(--green)}#toast.err{background:var(--red)}
- 
+
 .popup-ville{font-weight:700;font-size:13px;margin-bottom:3px}
 .popup-info{font-size:11px;color:#555;line-height:1.5}
 .popup-btn{display:inline-block;margin-top:7px;padding:5px 10px;background:var(--blue);color:#fff;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;border:none;font-family:inherit}
- 
+
 @media(max-width:700px){
   .flayout{grid-template-columns:1fr;height:auto}
   #map{height:260px}
@@ -173,7 +173,7 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:11px 20px;d
 </style>
 </head>
 <body>
- 
+
 <header>
   <div>
     <div class="htitle">🌊 Road Trip Sud-Ouest</div>
@@ -190,10 +190,10 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:11px 20px;d
     <button class="vbtn" id="va" onclick="tryAdmin()">🔐 Admin</button>
   </div>
 </header>
- 
+
 <div class="syncbar"><div class="sdot" id="sdot"></div><span id="stxt">Connexion au Google Sheet...</span></div>
 <div class="ebar" id="ebar" style="display:none"></div>
- 
+
 <!-- FRIEND VIEW -->
 <div id="view-friend" style="display:none">
   <div class="flayout">
@@ -201,16 +201,16 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:11px 20px;d
     <div class="fsb" id="fsb"></div>
   </div>
 </div>
- 
+
 <!-- ADMIN VIEW -->
 <div id="view-admin" style="display:none;padding:0">
   <div class="alayout">
     <div class="adash" id="adash"></div>
   </div>
 </div>
- 
+
 <div id="toast"></div>
- 
+
 <!-- Modal login -->
 <div class="overlay" id="m-login">
   <div class="mbox">
@@ -224,7 +224,7 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:11px 20px;d
     </div>
   </div>
 </div>
- 
+
 <!-- Modal étape -->
 <div class="overlay" id="m-etape">
   <div class="mbox" style="max-width:460px">
@@ -262,7 +262,7 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:11px 20px;d
     </div>
   </div>
 </div>
- 
+
 <!-- Modal confirm -->
 <div class="overlay" id="m-confirm">
   <div class="mbox">
@@ -274,17 +274,17 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:11px 20px;d
     </div>
   </div>
 </div>
- 
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbywdPQleOeH8u-L9ecVZnXP3CgDf2Hq2UPTqXVQpXsg1OeSamdLwxjCoxtHlTc42CFiog/exec';
 const ADMIN_PWD = 'sudouest2026';
 const POLL = 15000;
- 
+
 let STAGES = {}, dispos = [], isAdmin = false, view = 'friend';
 let editingId = null, confirmCb = null, syncing = false;
 let mapMarkers = {}, polyLine = null, poteMarkers = {}, poteCount = {};
- 
+
 // ── API ──
 async function apiGet(action) {
   const res = await fetch(`${SCRIPT_URL}?action=${action}`);
@@ -296,12 +296,12 @@ async function apiPost(body) {
   const txt = await res.text();
   try { return JSON.parse(txt); } catch { return {success:false}; }
 }
- 
+
 function setSync(loading, txt) {
   document.getElementById('sdot').classList.toggle('spin', loading);
   if(txt) document.getElementById('stxt').textContent = txt;
 }
- 
+
 async function loadEtapes() {
   const raw = await apiGet('getEtapes');
   const obj = {};
@@ -313,7 +313,7 @@ async function loadEtapes() {
   }; });
   STAGES = obj;
 }
- 
+
 async function loadDispos() {
   const raw = await apiGet('getDispos');
   dispos = raw.map(r => ({
@@ -324,7 +324,7 @@ async function loadDispos() {
     msg:r.msg||'', status:r.status||'pending', timestamp:r.timestamp||''
   }));
 }
- 
+
 async function fullSync(init=false) {
   if(syncing) return;
   syncing = true;
@@ -348,7 +348,7 @@ async function fullSync(init=false) {
     if(init) { document.getElementById('view-friend').style.display='block'; document.getElementById('ebar').style.display='flex'; }
   } finally { syncing = false; }
 }
- 
+
 // ── MAP ──
 let mapInit = false;
 let leafMap;
@@ -358,11 +358,11 @@ function initMap() {
   leafMap = L.map('map').setView([43.95, -1.1], 8);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap',maxZoom:18}).addTo(leafMap);
 }
- 
+
 function mkIcon(color, size=13) {
   return L.divIcon({className:'',html:`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 2px 7px rgba(0,0,0,.3)"></div>`,iconAnchor:[size/2,size/2],popupAnchor:[0,-size/2]});
 }
- 
+
 function renderMap() {
   initMap();
   Object.values(mapMarkers).forEach(m => leafMap.removeLayer(m));
@@ -383,7 +383,7 @@ function renderMap() {
     mapMarkers[id] = m;
   });
 }
- 
+
 function clearPoteMarkers() { Object.values(poteMarkers).forEach(m => leafMap&&leafMap.removeLayer(m)); poteMarkers={}; poteCount={}; }
 function refreshPoteMarkers() {
   clearPoteMarkers();
@@ -398,7 +398,7 @@ function refreshPoteMarkers() {
     poteMarkers[d.id] = m;
   });
 }
- 
+
 // ── ETAPES BAR ──
 function renderEbar() {
   const bar = document.getElementById('ebar');
@@ -411,7 +411,7 @@ function renderEbar() {
     bar.appendChild(b);
   });
 }
- 
+
 function updateBadges() {
   const app = dispos.filter(d=>d.status==='approved').length;
   const pend = dispos.filter(d=>d.status==='pending').length;
@@ -420,7 +420,7 @@ function updateBadges() {
   bp.style.display = pend ? 'inline-flex' : 'none';
   bp.textContent = '⏳ '+pend+' en attente';
 }
- 
+
 // ── OVERLAP ──
 function computeOverlaps(ds, de) {
   if(!ds||!de||ds>de) return [];
@@ -437,7 +437,7 @@ function computeOverlaps(ds, de) {
   });
   return res;
 }
- 
+
 function stageInRange(s, day) {
   if(s.dateStart&&s.dateEnd) { const a=parseInt(s.dateStart.split('-')[2]),b=parseInt(s.dateEnd.split('-')[2]); return day>=a&&day<=b; }
   if(!s.dates) return false;
@@ -445,7 +445,7 @@ function stageInRange(s, day) {
   const m2=s.dates.match(/^(\d+)/); if(m2) return day===parseInt(m2[1]);
   return false;
 }
- 
+
 // ── FRIEND VIEW ──
 function renderFriend() {
   document.getElementById('view-friend').style.display = 'block';
@@ -457,14 +457,14 @@ function renderFriend() {
   document.getElementById('inp-de').addEventListener('change', updateOverlapPreview);
   buildCalFriend();
 }
- 
+
 function updateFriendDisposList() {
   const d = document.getElementById('dispos-friend');
   if(d) { d.outerHTML = disposFriendHTML(); }
   const c = document.getElementById('cal-friend');
   if(c) buildCalFriend();
 }
- 
+
 function friendFormHTML() {
   return `<div class="sec">
     <div class="sttl">📅 Je suis dispo !</div>
@@ -479,7 +479,7 @@ function friendFormHTML() {
     <button class="bsub" id="btn-sub" onclick="submitDispo()">✓ Proposer ma dispo</button>
   </div>`;
 }
- 
+
 function updateOverlapPreview() {
   const ds = document.getElementById('inp-ds')?.value;
   const de = document.getElementById('inp-de')?.value;
@@ -496,7 +496,7 @@ function updateOverlapPreview() {
   });
   el.innerHTML = h + '</div>';
 }
- 
+
 function planningHTML() {
   const tc={surf:'surf',pote:'pote',fete:'fete',depart:'libre'};
   const col={surf:'#378ADD',pote:'#1D9E75',fete:'#BA7517',depart:'#888'};
@@ -514,7 +514,7 @@ function planningHTML() {
   });
   return `<div class="sec"><div class="sttl">🗓 Planning indicatif</div>${h||'<div class="empty">Aucune étape</div>'}</div>`;
 }
- 
+
 function disposFriendHTML() {
   const app = dispos.filter(d=>d.status==='approved');
   const pend = dispos.filter(d=>d.status==='pending').length;
@@ -540,11 +540,11 @@ function disposFriendHTML() {
   });
   return `<div class="sec" id="dispos-friend"><div class="sttl">👥 Dispos confirmées <span class="cpill">${app.length}</span></div>${pend?`<p style="font-size:11px;color:#aaa;margin-bottom:8px">⏳ ${pend} en attente de validation</p>`:''}<div>${h}</div></div>`;
 }
- 
+
 function calFriendHTML() {
   return `<div class="sec"><div class="sttl">📆 Calendrier</div><div id="cal-friend" style="overflow-x:auto"></div></div>`;
 }
- 
+
 function buildCalFriend() {
   const el = document.getElementById('cal-friend'); if(!el) return;
   const days = Array.from({length:13},(_,i)=>8+i);
@@ -575,7 +575,7 @@ function buildCalFriend() {
   h += `</div><div style="font-size:10px;color:#aaa;margin-top:5px">Juillet 2026 · initiales = pote confirmé</div>`;
   el.innerHTML = h;
 }
- 
+
 function legendHTML() {
   return `<div class="sec"><div class="sttl">🗺 Légende</div><div class="leg">
     <div class="li"><div class="ld" style="background:#E24B4A"></div>Bordeaux (départ / retour)</div>
@@ -585,7 +585,7 @@ function legendHTML() {
     <div class="li"><div class="ld" style="background:#D4537E"></div>Pote confirmé</div>
   </div></div>`;
 }
- 
+
 // ── SUBMIT DISPO ──
 async function submitDispo() {
   const nom = document.getElementById('inp-nom')?.value.trim();
@@ -614,7 +614,7 @@ async function submitDispo() {
   } catch(e) { toast('Erreur de connexion.','err'); console.error(e); }
   btn.disabled=false; btn.textContent='✓ Proposer ma dispo';
 }
- 
+
 // ── ADMIN VIEW ──
 function renderAdmin() {
   document.getElementById('view-admin').style.display = 'block';
@@ -623,7 +623,7 @@ function renderAdmin() {
   const poteNames = [...new Set(approved.map(d=>d.nom))];
   const days = Array.from({length:13},(_,i)=>8+i);
   const sl = Object.entries(STAGES).filter(([,s])=>s.type!=='depart');
- 
+
   // Stats
   const stats = `<div class="stats-row">
     <div class="stat-card"><div class="stat-lbl">Étapes</div><div class="stat-val">${Object.keys(STAGES).length}</div></div>
@@ -631,7 +631,7 @@ function renderAdmin() {
     <div class="stat-card" style="background:#fff8e6"><div class="stat-lbl" style="color:#854f0b">En attente</div><div class="stat-val" style="color:var(--orange)">${pending.length}</div></div>
     <div class="stat-card" style="background:var(--blue-light)"><div class="stat-lbl" style="color:#185fa5">Potes</div><div class="stat-val" style="color:var(--blue)">${poteNames.length}</div></div>
   </div>`;
- 
+
   // Calendar grid
   let calH = `<div style="display:grid;grid-template-columns:54px repeat(13,1fr);gap:2px;overflow-x:auto;min-width:280px">`;
   calH += `<div></div>`+days.map(d=>`<div style="text-align:center;font-size:9px;color:#aaa;padding-bottom:3px">${d}</div>`).join('');
@@ -667,7 +667,7 @@ function renderAdmin() {
     <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#555"><span style="width:10px;height:10px;border-radius:2px;background:#fac775;display:inline-block"></span>En attente</div>
     <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#aaa"><span style="width:10px;height:10px;border-radius:2px;background:#ddd;display:inline-block"></span>Étape active</div>
   </div>`;
- 
+
   // Pending section
   let pendH = '';
   if(!pending.length) pendH = `<div class="empty">Aucune dispo en attente 🎉</div>`;
@@ -689,7 +689,7 @@ function renderAdmin() {
       </div>
     </div>`;
   });
- 
+
   // Approved section
   let appH = '';
   if(!approved.length) appH = `<div class="empty">Aucune dispo confirmée</div>`;
@@ -705,7 +705,7 @@ function renderAdmin() {
       <button class="adel" onclick="confirmDelDispo('${d.id}')">×</button>
     </div>`;
   });
- 
+
   // Etapes table
   let etH = `<table class="etable"><thead><tr><th>Étape</th><th>Dates</th><th>Logement</th><th>Actions</th></tr></thead><tbody>`;
   Object.entries(STAGES).forEach(([id,s]) => {
@@ -720,7 +720,7 @@ function renderAdmin() {
     </tr>`;
   });
   etH += `</tbody></table>`;
- 
+
   document.getElementById('adash').innerHTML = `
     ${stats}
     <div class="panel">
@@ -744,7 +744,7 @@ function renderAdmin() {
     </div>
   `;
 }
- 
+
 // ── VALIDATE / DELETE DISPOS ──
 async function validateDispo(id, status) {
   try {
@@ -753,7 +753,7 @@ async function validateDispo(id, status) {
     else toast('Erreur lors de la mise à jour.','err');
   } catch(e) { toast('Erreur de connexion.','err'); console.error(e); }
 }
- 
+
 function confirmDelDispo(id) {
   const d=dispos.find(x=>x.id===id); if(!d) return;
   confirm2(`Supprimer la dispo de ${d.nom} ?`, `${d.nom} · ${STAGES[d.ville]?.label||d.ville||'?'} · ${fmtD(d.dateStart)||fmtDate(d.date)}`, async()=>{
@@ -762,7 +762,7 @@ function confirmDelDispo(id) {
     else toast('Erreur.','err');
   });
 }
- 
+
 // ── ETAPES CRUD ──
 function showAddEtape() {
   editingId=null;
@@ -773,7 +773,7 @@ function showAddEtape() {
   document.getElementById('e-err').classList.remove('show');
   openM('m-etape');
 }
- 
+
 function editEtape(id) {
   const s=STAGES[id]; if(!s) return;
   editingId=id;
@@ -790,7 +790,7 @@ function editEtape(id) {
   document.getElementById('e-err').classList.remove('show');
   openM('m-etape');
 }
- 
+
 async function saveEtape() {
   const id=editingId||document.getElementById('e-id').value.trim().replace(/\s+/g,'_').toLowerCase();
   const label=document.getElementById('e-label').value.trim();
@@ -810,7 +810,7 @@ async function saveEtape() {
     else toast('Erreur lors de l\'enregistrement.','err');
   } catch(e) { toast('Erreur de connexion.','err'); console.error(e); }
 }
- 
+
 function confirmDelEtape(id) {
   const s=STAGES[id];
   confirm2(`Supprimer l'étape "${s.label}" ?`,'Les dispos liées resteront dans le Sheet mais ne seront plus affichées.',async()=>{
@@ -819,7 +819,7 @@ function confirmDelEtape(id) {
     else toast('Erreur.','err');
   });
 }
- 
+
 // ── VIEW SWITCH ──
 function setView(v) {
   view=v;
@@ -837,7 +837,7 @@ function setView(v) {
     renderAdmin();
   }
 }
- 
+
 function tryAdmin() {
   if(isAdmin) { setView('admin'); return; }
   document.getElementById('pwd').value='';
@@ -850,7 +850,7 @@ function checkPwd() {
     isAdmin=true; closeM('m-login'); setView('admin'); toast('✓ Connecté en admin','ok');
   } else { document.getElementById('pwd-err').classList.add('show'); document.getElementById('pwd').select(); }
 }
- 
+
 // ── MODALS ──
 function openM(id) { document.getElementById(id).classList.add('show'); }
 function closeM(id) { document.getElementById(id).classList.remove('show'); }
@@ -863,7 +863,7 @@ function confirm2(ttl,msg,cb) {
 }
 document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)closeM(el.id);}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')['m-login','m-etape','m-confirm'].forEach(id=>closeM(id));});
- 
+
 // ── UTILS ──
 let toastT;
 function toast(msg,type=''){
@@ -874,7 +874,7 @@ function toast(msg,type=''){
 function fmtDate(s){if(!s)return'';const[,m,d]=String(s).split('-');const M=['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];return parseInt(d)+' '+M[parseInt(m)-1];}
 function fmtD(iso){if(!iso)return'';const[,m,d]=iso.split('-');return parseInt(d)+' juil.';}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
- 
+
 // ── INIT ──
 (async function(){
   await fullSync(true);
