@@ -6,1186 +6,880 @@
 <title>Road Trip Sud-Ouest 🌊</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-:root {
-  --blue: #378ADD; --blue-dark: #185fa5; --blue-light: #e6f1fb;
-  --green: #1D9E75; --green-light: #eaf3de;
-  --orange: #BA7517; --orange-light: #faedda;
-  --pink: #D4537E; --pink-light: #fbeaf0;
-  --red: #E24B4A; --grey: #f5f4f0; --border: #e8e8e8;
-  --text: #1a1a1a; --muted: #666;
+:root{
+  --blue:#378ADD;--blue-dark:#185fa5;--blue-light:#e6f1fb;
+  --green:#1D9E75;--green-light:#eaf3de;
+  --orange:#BA7517;--orange-light:#faedda;
+  --pink:#D4537E;--pink-light:#fbeaf0;
+  --red:#E24B4A;--grey:#f5f4f0;--border:#e8e8e8;
+  --text:#1a1a1a;--muted:#666;--radius:8px;
 }
-body { font-family: 'Inter', -apple-system, sans-serif; background: var(--grey); color: var(--text); font-size: 13px; }
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--grey);color:var(--text);font-size:13px}
 
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 10000; }
-.modal-overlay.show { display: flex; }
-.modal-box { background: #fff; border-radius: 14px; padding: 26px 22px; width: 90%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
-.modal-box h2 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
-.modal-box p { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
-.modal-input { width: 100%; padding: 9px 11px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; margin-bottom: 9px; font-family: inherit; }
-.modal-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(55,138,221,.12); }
-.modal-error { color: var(--red); font-size: 11px; margin-bottom: 8px; display: none; }
-.modal-error.show { display: block; }
-.modal-btns { display: flex; gap: 8px; }
-.btn { padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; }
-.btn-primary { background: var(--blue); color: #fff; flex: 1; }
-.btn-primary:hover { background: var(--blue-dark); }
-.btn-secondary { background: var(--grey); color: var(--muted); }
-.btn-secondary:hover { background: #eee; }
-.btn-danger { background: #fff2f2; color: var(--red); border: 1px solid #fdd; flex: 1; }
-.btn-danger:hover { background: #fdd; }
+/* ── MODALS ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:10000}
+.overlay.show{display:flex}
+.mbox{background:#fff;border-radius:14px;padding:24px 20px;width:90%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.mbox h2{font-size:15px;font-weight:700;margin-bottom:5px}
+.mbox p{font-size:11px;color:var(--muted);margin-bottom:14px}
+.mi{width:100%;padding:9px 11px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:13px;outline:none;margin-bottom:8px;font-family:inherit;background:#fff;color:var(--text)}
+.mi:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(55,138,221,.1)}
+.merr{color:var(--red);font-size:11px;margin-bottom:7px;display:none}
+.merr.show{display:block}
+.mbtns{display:flex;gap:8px}
+.btn{padding:9px 16px;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:all .15s}
+.btn-ok{background:var(--blue);color:#fff;flex:1}.btn-ok:hover{background:var(--blue-dark)}
+.btn-cancel{background:var(--grey);color:var(--muted)}.btn-cancel:hover{background:#eee}
+.btn-del{background:#fff2f2;color:var(--red);border:1px solid #fdd;flex:1}.btn-del:hover{background:#fdd}
 
-header { background: #fff; border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; position: sticky; top: 0; z-index: 900; }
-.header-left h1 { font-size: 16px; font-weight: 700; }
-.header-left p { font-size: 11px; color: var(--muted); margin-top: 2px; }
-.header-badges { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; margin-left: auto; }
-.badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
-.badge-surf { background: var(--blue-light); color: var(--blue-dark); border: 1px solid #b5d4f4; }
-.badge-fete { background: var(--orange-light); color: #854f0b; border: 1px solid #fac775; }
-.badge-dispos { background: #f1effe; color: #534ab7; border: 1px solid #afa9ec; cursor: pointer; }
-.badge-dispos:hover { background: #e6e1fc; }
-.badge-pending { background: #fff3cd; color: #856404; border: 1px solid #ffe69c; cursor: pointer; }
-.badge-pending:hover { background: #ffe69c; }
+/* ── HEADER ── */
+header{background:#fff;border-bottom:1px solid var(--border);padding:11px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:900}
+.htitle{font-size:15px;font-weight:700}
+.hsub{font-size:11px;color:var(--muted);margin-top:1px}
+.hbadges{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-left:auto}
+.badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px}
+.b-surf{background:var(--blue-light);color:var(--blue-dark);border:1px solid #b5d4f4}
+.b-fete{background:var(--orange-light);color:#854f0b;border:1px solid #fac775}
+.b-dispos{background:#f1effe;color:#534ab7;border:1px solid #afa9ec;cursor:pointer}.b-dispos:hover{background:#e6e1fc}
+.b-pending{background:#fff3cd;color:#856404;border:1px solid #ffe69c;cursor:pointer}.b-pending:hover{background:#ffe69c}
+.vtoggle{display:flex;background:var(--grey);border-radius:var(--radius);padding:3px;border:1px solid var(--border)}
+.vbtn{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:none;color:var(--muted);font-family:inherit;transition:all .15s}
+.vbtn.on{background:#fff;color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.1)}
 
-.view-toggle { display: flex; background: var(--grey); border-radius: 8px; padding: 3px; border: 1px solid var(--border); }
-.view-btn { padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; background: none; color: var(--muted); font-family: inherit; }
-.view-btn.active { background: #fff; color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+/* ── SYNC BAR ── */
+.syncbar{background:#fff;border-bottom:1px solid var(--border);padding:5px 16px;font-size:11px;color:#999;display:flex;align-items:center;gap:6px}
+.sdot{width:6px;height:6px;border-radius:50%;background:#1D9E75;flex-shrink:0}
+.sdot.spin{background:#BA7517;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-.sync-bar { background: #fff; border-bottom: 1px solid var(--border); padding: 5px 16px; font-size: 11px; color: #999; display: flex; align-items: center; gap: 6px; }
-.sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #1D9E75; }
-.sync-dot.loading { background: #BA7517; animation: pulse 1s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+/* ── ETAPES BAR ── */
+.ebar{background:#fff;border-bottom:1px solid var(--border);padding:7px 14px;display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.elbl{font-size:11px;color:#aaa;margin-right:2px}
+.ebtn{font-size:12px;padding:3px 9px;border-radius:20px;border:1px solid var(--border);background:#fff;cursor:pointer;font-family:inherit;transition:all .15s}
+.ebtn:hover{background:var(--blue-light);border-color:var(--blue);color:var(--blue-dark)}
+.ebtn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
 
-.etapes-bar { background: #fff; border-bottom: 1px solid var(--border); padding: 8px 16px; display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
-.etapes-bar .bar-label { font-size: 11px; color: #aaa; margin-right: 2px; }
-.etape-btn { font-size: 12px; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); background: #fff; cursor: pointer; font-family: inherit; }
-.etape-btn:hover { background: var(--blue-light); border-color: var(--blue); color: var(--blue-dark); }
-.etape-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+/* ── FRIEND LAYOUT: map + sidebar ── */
+.flayout{display:grid;grid-template-columns:1fr 350px;height:calc(100vh - 112px)}
+#map{width:100%;height:100%}
+.fsb{background:#fff;border-left:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+.fsb::-webkit-scrollbar{width:4px}.fsb::-webkit-scrollbar-thumb{background:#ddd;border-radius:2px}
+.sec{padding:14px 16px;border-bottom:1px solid #eee}
+.sttl{font-size:10px;font-weight:700;color:#444;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.cpill{font-size:10px;background:#eee;color:#666;padding:1px 7px;border-radius:10px;font-weight:400;text-transform:none;letter-spacing:0}
 
-.admin-bar { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 8px 20px; display: none; align-items: center; gap: 12px; flex-wrap: wrap; }
-.admin-bar.show { display: flex; }
-.admin-bar span { color: #aaa; font-size: 11px; }
-.admin-tag { background: rgba(55,138,221,.2); color: #7ab9f0; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(55,138,221,.3); }
-.admin-btn { font-size: 11px; padding: 4px 10px; border-radius: 6px; cursor: pointer; border: none; font-family: inherit; font-weight: 600; }
-.admin-btn-add { background: rgba(29,158,117,.2); color: #3ecfa0; border: 1px solid rgba(29,158,117,.3); }
-.admin-btn-add:hover { background: rgba(29,158,117,.35); }
-.admin-btn-logout { background: rgba(255,255,255,.08); color: #aaa; border: 1px solid rgba(255,255,255,.12); margin-left: auto; }
-.admin-btn-logout:hover { background: rgba(255,255,255,.15); color: #fff; }
+/* ── ADMIN LAYOUT: full dashboard ── */
+.alayout{padding:20px;max-width:900px;margin:0 auto;width:100%}
+.adash{display:grid;gap:16px}
 
-.main { display: grid; grid-template-columns: 1fr 350px; min-height: calc(100vh - 130px); }
-#map { width: 100%; height: calc(100vh - 130px); min-height: 400px; }
-.sidebar { background: #fff; border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; max-height: calc(100vh - 130px); }
-.sidebar-section { padding: 16px; border-bottom: 1px solid #eee; }
-.section-title { font-size: 11px; font-weight: 700; color: #444; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
-.section-title .count-pill { font-size: 10px; background: #eee; color: #666; padding: 1px 7px; border-radius: 10px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+/* stat cards */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat-card{background:#fff;border-radius:10px;padding:14px 16px;border:1px solid var(--border)}
+.stat-lbl{font-size:11px;color:var(--muted);margin-bottom:4px}
+.stat-val{font-size:26px;font-weight:700}
 
-.planning { display: flex; flex-direction: column; gap: 3px; }
-.plan-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: 8px; font-size: 12px; }
-.plan-item.surf { background: var(--blue-light); } .plan-item.fete { background: var(--orange-light); }
-.plan-item.pote { background: var(--green-light); } .plan-item.libre { background: var(--grey); }
-.plan-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
-.plan-info { flex: 1; }
-.plan-ville { font-weight: 600; }
-.plan-detail { color: var(--muted); margin-top: 1px; font-size: 11px; }
-.plan-note { color: #999; font-style: italic; margin-top: 2px; font-size: 11px; }
-.plan-dates { font-size: 11px; color: var(--blue-dark); font-weight: 600; margin-top: 2px; }
-.plan-actions { display: flex; gap: 4px; margin-left: auto; }
-.plan-btn { font-size: 11px; padding: 2px 8px; border-radius: 5px; cursor: pointer; border: none; font-family: inherit; font-weight: 500; }
-.plan-btn-edit { background: #eee; color: #444; } .plan-btn-edit:hover { background: var(--blue-light); color: var(--blue-dark); }
-.plan-btn-del { background: #fff2f2; color: var(--red); } .plan-btn-del:hover { background: #fdd; }
+/* panels */
+.panel{background:#fff;border-radius:10px;border:1px solid var(--border);overflow:hidden}
+.panel-hd{padding:12px 16px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between}
+.panel-title{font-size:12px;font-weight:700;color:#333;letter-spacing:.3px;text-transform:uppercase}
+.panel-body{padding:14px 16px}
+.panel-add{font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;border:none;font-family:inherit;font-weight:600;background:var(--blue-light);color:var(--blue-dark);transition:all .15s}
+.panel-add:hover{background:var(--blue);color:#fff}
 
-.form-group { display: flex; flex-direction: column; gap: 3px; margin-bottom: 9px; }
-.form-group label { font-size: 11px; color: var(--muted); font-weight: 600; }
-.form-group input, .form-group select { padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12px; outline: none; font-family: inherit; }
-.form-group input:focus, .form-group select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(55,138,221,.1); }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.btn-submit { width: 100%; padding: 10px; background: var(--blue); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 4px; font-family: inherit; }
-.btn-submit:hover { background: var(--blue-dark); }
-.btn-submit.green { background: var(--green); } .btn-submit.green:hover { background: #167a5b; }
-.btn-submit:disabled { background: #aaa; cursor: not-allowed; }
+/* pending cards */
+.pcard{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:var(--radius);margin-bottom:8px;border:1px solid #fac775;background:#fff8e6}
+.pcard:last-child{margin-bottom:0}
+.pav{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+.pname{font-weight:600;font-size:13px;margin-bottom:2px}
+.pdetail{font-size:11px;color:#555;line-height:1.6}
+.poverlap{color:#27500a;font-weight:600}
+.pnoov{color:var(--red)}
+.pvbtns{display:flex;flex-direction:column;gap:4px;margin-left:auto;flex-shrink:0}
+.vok{font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;border:none;font-family:inherit;font-weight:600;background:#d4f0c2;color:#2a5c0e;white-space:nowrap}
+.vok:hover{background:#b8e89c}
+.vno{font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;border:none;font-family:inherit;font-weight:600;background:#fdd;color:#a32d2d;white-space:nowrap}
+.vno:hover{background:#fbb}
 
-.dispo-list { display: flex; flex-direction: column; gap: 6px; }
-.dispo-item { border-radius: 8px; padding: 9px 10px; display: flex; gap: 8px; align-items: flex-start; font-size: 12px; }
-.dispo-item.green-bg { background: var(--green-light); border: 1px solid #c0dd97; }
-.dispo-item.pink-bg { background: var(--pink-light); border: 1px solid #f4c0d1; }
-.dispo-item.blue-bg { background: var(--blue-light); border: 1px solid #b5d4f4; }
-.dispo-item.orange-bg { background: var(--orange-light); border: 1px solid #fac775; }
-.dispo-item.pending-bg { background: #fff8e6; border: 1px dashed #e6c875; }
-.dispo-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0; }
-.dispo-name { font-weight: 600; }
-.dispo-detail { color: #555; margin-top: 1px; font-size: 11px; line-height: 1.5; }
-.dispo-status { font-size: 10px; font-weight: 700; margin-top: 3px; }
-.dispo-status.pending { color: #856404; }
-.dispo-delete { background: none; border: none; cursor: pointer; color: #ccc; margin-left: auto; font-size: 16px; line-height: 1; flex-shrink: 0; }
-.dispo-delete:hover { color: var(--red); }
-.dispo-validate-btns { display: flex; flex-direction: column; gap: 3px; margin-left: auto; }
-.vbtn { font-size: 10px; padding: 2px 7px; border-radius: 5px; cursor: pointer; border: none; font-family: inherit; font-weight: 600; white-space: nowrap; }
-.vbtn-ok { background: #d4f0c2; color: #2a5c0e; } .vbtn-ok:hover { background: #b8e89c; }
-.vbtn-no { background: #fdd; color: #a32d2d; } .vbtn-no:hover { background: #fbb; }
-.empty-state { font-size: 12px; color: #aaa; font-style: italic; text-align: center; padding: 16px 0; }
+/* approved rows */
+.arow{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--radius);margin-bottom:5px;background:var(--green-light);border:1px solid #c0dd97}
+.arow:last-child{margin-bottom:0}
+.adel{background:none;border:none;cursor:pointer;color:#ccc;font-size:16px;line-height:1;margin-left:auto}.adel:hover{color:var(--red)}
 
-.legend { display: flex; flex-direction: column; gap: 5px; }
-.leg-item { display: flex; align-items: center; gap: 7px; font-size: 11px; color: #555; }
-.leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+/* etapes table */
+.etable{width:100%;border-collapse:collapse}
+.etable th{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.4px;padding:6px 10px;text-align:left;border-bottom:1px solid #eee}
+.etable td{padding:8px 10px;font-size:12px;border-bottom:1px solid #f5f5f5;vertical-align:middle}
+.etable tr:last-child td{border-bottom:none}
+.edot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}
+.eact{display:flex;gap:4px}
+.ebtn-sm{font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer;border:none;font-family:inherit;font-weight:500}
+.ebtn-edit{background:#eee;color:#444}.ebtn-edit:hover{background:var(--blue-light);color:var(--blue-dark)}
+.ebtn-del{background:#fff2f2;color:var(--red)}.ebtn-del:hover{background:#fdd}
 
-.info-box { background: linear-gradient(135deg, var(--blue-light) 0%, #f0f7ff 100%); border: 1px solid #b5d4f4; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; font-size: 12px; color: #2a5a8a; line-height: 1.6; }
-.info-box strong { display: block; margin-bottom: 3px; font-size: 13px; }
-.slot-taken { background: #fff3f3; border: 1px solid #fcc; border-radius: 7px; padding: 6px 9px; font-size: 11px; color: #c44; margin-top: 6px; display: none; }
-.slot-taken.visible { display: block; }
+/* calendar grid */
+.calgrid{display:grid;gap:2px;overflow-x:auto}
+.calfriendgrid{font-size:10px}
 
-#toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 24px; font-size: 12px; font-weight: 500; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,.3); }
-#toast.show { opacity: 1; } #toast.success { background: #1D9E75; } #toast.error { background: var(--red); }
+/* friend sections */
+.plan-item{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:var(--radius);font-size:12px;margin-bottom:3px}
+.plan-item.surf{background:var(--blue-light)}.plan-item.pote{background:var(--green-light)}
+.plan-item.fete{background:var(--orange-light)}.plan-item.libre{background:var(--grey)}
+.pdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.pinfo{flex:1}.pv{font-weight:600}.pd{color:var(--muted);margin-top:1px;font-size:11px}
+.pdate{color:var(--blue-dark);font-size:11px;font-weight:600;margin-top:1px}
+.pnote{color:#999;font-style:italic;font-size:10px;margin-top:1px}
 
-.dispo-group-title { font-size: 10px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: .5px; margin: 10px 0 5px; }
-.sidebar::-webkit-scrollbar { width: 5px; }
-.sidebar::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
+.fg{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+.fg label{font-size:11px;color:var(--muted);font-weight:600}
+.fg input,.fg select{padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:12px;outline:none;font-family:inherit;background:#fff}
+.fg input:focus,.fg select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(55,138,221,.1)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bsub{width:100%;padding:10px;background:var(--green);color:#fff;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s}
+.bsub:hover{background:#167a5b}.bsub:disabled{background:#aaa;cursor:not-allowed}
+.infobox{background:var(--blue-light);border:1px solid #b5d4f4;border-radius:var(--radius);padding:10px 12px;margin-bottom:10px;font-size:11px;color:#2a5a8a;line-height:1.6}
+.infobox strong{display:block;margin-bottom:2px;font-size:12px}
+.ovresult{margin-bottom:8px}
+.dg-ttl{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.4px;margin:8px 0 4px}
+.di{border-radius:var(--radius);padding:8px 10px;display:flex;gap:8px;align-items:flex-start;font-size:12px;margin-bottom:5px}
+.di.gb{background:var(--green-light);border:1px solid #c0dd97}
+.di.pb{background:var(--pink-light);border:1px solid #f4c0d1}
+.di.bb{background:var(--blue-light);border:1px solid #b5d4f4}
+.di.ob{background:var(--orange-light);border:1px solid #fac775}
+.dav{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.dn{font-weight:600}.dd{color:#555;margin-top:1px;line-height:1.5;font-size:11px}
+.empty{font-size:11px;color:#aaa;font-style:italic;text-align:center;padding:14px 0}
+.leg{display:flex;flex-direction:column;gap:4px}
+.li{display:flex;align-items:center;gap:6px;font-size:11px;color:#555}
+.ld{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 
-.popup-ville { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
-.popup-info { font-size: 11px; color: #555; line-height: 1.5; }
-.popup-btn { display: inline-block; margin-top: 8px; padding: 5px 10px; background: var(--blue); color: #fff; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; }
+/* toast */
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:9px 18px;border-radius:22px;font-size:12px;font-weight:500;opacity:0;transition:opacity .3s;pointer-events:none;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+#toast.show{opacity:1}#toast.ok{background:var(--green)}#toast.err{background:var(--red)}
 
-.tabs { display: flex; gap: 4px; margin-bottom: 10px; }
-.tab { font-size: 11px; padding: 4px 10px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); background: #fff; font-family: inherit; font-weight: 600; color: var(--muted); }
-.tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.popup-ville{font-weight:700;font-size:13px;margin-bottom:3px}
+.popup-info{font-size:11px;color:#555;line-height:1.5}
+.popup-btn{display:inline-block;margin-top:7px;padding:5px 10px;background:var(--blue);color:#fff;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;border:none;font-family:inherit}
 
-@media (max-width: 700px) {
-  .main { grid-template-columns: 1fr; }
-  #map { height: 280px; min-height: 280px; }
-  .sidebar { max-height: none; border-left: none; border-top: 1px solid #eee; }
-  .form-row { grid-template-columns: 1fr; }
-  header { gap: 8px; }
-  .view-toggle { order: 3; width: 100%; }
-  .header-badges { margin-left: 0; }
+@media(max-width:700px){
+  .flayout{grid-template-columns:1fr;height:auto}
+  #map{height:260px}
+  .fsb{max-height:none;border-left:none;border-top:1px solid #eee}
+  .frow{grid-template-columns:1fr}
+  .stats-row{grid-template-columns:1fr 1fr}
+  header{gap:8px}.vtoggle{order:3;width:100%}.hbadges{margin-left:0}
 }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="header-left">
-    <h1>🌊 Road Trip Sud-Ouest</h1>
-    <p id="trip-subtitle">8 juillet (soir) → 20 juillet 2026 · Bordeaux aller-retour</p>
+  <div>
+    <div class="htitle">🌊 Road Trip Sud-Ouest</div>
+    <div class="hsub">8 juillet (soir) → 20 juillet 2026 · Bordeaux aller-retour</div>
   </div>
-  <div class="header-badges">
-    <div class="badge badge-surf">🏄 Surf</div>
-    <div class="badge badge-fete">🎉 Fêtes de Bayonne 15-19 juil.</div>
-    <div class="badge badge-dispos" id="badge-dispos" onclick="scrollToDispos()">0 dispo</div>
+  <div class="hbadges">
+    <div class="badge b-surf">🏄 Surf</div>
+    <div class="badge b-fete">🎉 Fêtes de Bayonne 15-19 juil.</div>
+    <div class="badge b-dispos" id="b-dispos">0 dispo</div>
+    <div class="badge b-pending" id="b-pending" style="display:none" onclick="setView('admin');tryAdmin()">⏳ 0 en attente</div>
   </div>
-  <div class="view-toggle">
-    <button class="view-btn active" id="btn-friend" onclick="setView('friend')">👥 Mes potes</button>
-    <button class="view-btn" id="btn-admin" onclick="tryAdmin()">🔐 Admin</button>
+  <div class="vtoggle">
+    <button class="vbtn on" id="vf" onclick="setView('friend')">👥 Mes potes</button>
+    <button class="vbtn" id="va" onclick="tryAdmin()">🔐 Admin</button>
   </div>
 </header>
 
-<div class="sync-bar">
-  <div class="sync-dot" id="sync-dot"></div>
-  <span id="sync-text">Connecté au Google Sheet</span>
+<div class="syncbar"><div class="sdot" id="sdot"></div><span id="stxt">Connexion au Google Sheet...</span></div>
+<div class="ebar" id="ebar" style="display:none"></div>
+
+<!-- FRIEND VIEW -->
+<div id="view-friend" style="display:none">
+  <div class="flayout">
+    <div id="map"></div>
+    <div class="fsb" id="fsb"></div>
+  </div>
 </div>
 
-<div class="admin-bar" id="admin-bar">
-  <span class="admin-tag">⚙️ Mode Admin</span>
-  <span>Gère tes étapes et valide les dispos de tes potes</span>
-  <button class="admin-btn admin-btn-add" onclick="showAddEtapeModal()">+ Nouvelle étape</button>
-  <button class="admin-btn admin-btn-logout" onclick="logoutAdmin()">Déconnexion</button>
-</div>
-
-<div class="etapes-bar" id="etapes-bar">
-  <span class="bar-label">Zoom :</span>
-</div>
-
-<div class="main">
-  <div id="map"></div>
-  <div class="sidebar" id="sidebar"></div>
+<!-- ADMIN VIEW -->
+<div id="view-admin" style="display:none;padding:0">
+  <div class="alayout">
+    <div class="adash" id="adash"></div>
+  </div>
 </div>
 
 <div id="toast"></div>
 
-<div class="modal-overlay" id="modal-login">
-  <div class="modal-box">
+<!-- Modal login -->
+<div class="overlay" id="m-login">
+  <div class="mbox">
     <h2>🔐 Accès admin</h2>
     <p>Entre le mot de passe pour gérer le road trip.</p>
-    <input class="modal-input" type="password" id="pwd-input" placeholder="Mot de passe" onkeydown="if(event.key==='Enter') checkPwd()"/>
-    <div class="modal-error" id="pwd-error">Mot de passe incorrect.</div>
-    <div class="modal-btns">
-      <button class="btn btn-secondary" onclick="closeModal('modal-login')">Annuler</button>
-      <button class="btn btn-primary" onclick="checkPwd()">Connexion</button>
+    <input class="mi" type="password" id="pwd" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')checkPwd()"/>
+    <div class="merr" id="pwd-err">Mot de passe incorrect.</div>
+    <div class="mbtns">
+      <button class="btn btn-cancel" onclick="closeM('m-login')">Annuler</button>
+      <button class="btn btn-ok" onclick="checkPwd()">Connexion</button>
     </div>
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-etape">
-  <div class="modal-box" style="max-width:440px">
-    <h2 id="modal-etape-title">➕ Nouvelle étape</h2>
-    <p>Ajoute ou modifie une étape du road trip.</p>
-    <input class="modal-input" id="e-id" placeholder="Identifiant court (ex: hossegor)" style="font-family:monospace"/>
-    <input class="modal-input" id="e-label" placeholder="Nom affiché (ex: Hossegor / Capbreton)"/>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      <input class="modal-input" id="e-lat" placeholder="Latitude" style="margin:0"/>
-      <input class="modal-input" id="e-lng" placeholder="Longitude" style="margin:0"/>
+<!-- Modal étape -->
+<div class="overlay" id="m-etape">
+  <div class="mbox" style="max-width:460px">
+    <h2 id="m-etape-ttl">Nouvelle étape</h2>
+    <p>Remplis les infos de l'étape.</p>
+    <input class="mi" id="e-id" placeholder="Identifiant (ex: hossegor)" style="font-family:monospace"/>
+    <input class="mi" id="e-label" placeholder="Nom affiché (ex: Hossegor / Capbreton)"/>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <input class="mi" id="e-lat" placeholder="Latitude" style="margin:0"/>
+      <input class="mi" id="e-lng" placeholder="Longitude" style="margin:0"/>
     </div>
-    <select class="modal-input" id="e-type">
-      <option value="surf">🏄 Surf (caisse)</option>
+    <select class="mi" id="e-type">
+      <option value="surf">🏄 Surf</option>
       <option value="pote">🏠 Chez un pote</option>
       <option value="fete">🎉 Fête</option>
-      <option value="depart">🔴 Départ / Retour</option>
+      <option value="depart">📍 Départ / Retour</option>
     </select>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <div>
-        <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">📅 Date d'arrivée</label>
-        <input class="modal-input" type="date" id="e-date-start" min="2026-07-08" max="2026-07-20" style="margin:0"/>
+        <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">📅 Arrivée</label>
+        <input class="mi" type="date" id="e-ds" min="2026-07-08" max="2026-07-20" style="margin:0"/>
       </div>
       <div>
-        <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">📅 Date de départ</label>
-        <input class="modal-input" type="date" id="e-date-end" min="2026-07-08" max="2026-07-20" style="margin:0"/>
+        <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">📅 Départ</label>
+        <input class="mi" type="date" id="e-de" min="2026-07-08" max="2026-07-20" style="margin:0"/>
       </div>
     </div>
-    <input class="modal-input" id="e-surf" placeholder="Spots de surf (ex: Estagnots, Santocha)"/>
-    <input class="modal-input" id="e-dodo" placeholder="Logement / nuit"/>
-    <input class="modal-input" id="e-info" placeholder="Info pratique"/>
-    <div class="modal-error" id="etape-error">Remplis au moins id, nom, lat et lng.</div>
-    <div class="modal-btns">
-      <button class="btn btn-secondary" onclick="closeModal('modal-etape')">Annuler</button>
-      <button class="btn btn-primary" onclick="saveEtape()">Enregistrer</button>
+    <input class="mi" id="e-surf" placeholder="Spots de surf (ou —)"/>
+    <input class="mi" id="e-dodo" placeholder="Logement / nuit"/>
+    <input class="mi" id="e-info" placeholder="Info pratique"/>
+    <div class="merr" id="e-err">Remplis au moins id, nom, lat et lng.</div>
+    <div class="mbtns">
+      <button class="btn btn-cancel" onclick="closeM('m-etape')">Annuler</button>
+      <button class="btn btn-ok" onclick="saveEtape()">Enregistrer</button>
     </div>
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-confirm">
-  <div class="modal-box">
-    <h2 id="confirm-title">Confirmer ?</h2>
-    <p id="confirm-msg"></p>
-    <div class="modal-btns">
-      <button class="btn btn-secondary" onclick="closeModal('modal-confirm')">Annuler</button>
-      <button class="btn btn-danger" id="confirm-ok">Confirmer</button>
+<!-- Modal confirm -->
+<div class="overlay" id="m-confirm">
+  <div class="mbox">
+    <h2 id="c-ttl">Confirmer ?</h2>
+    <p id="c-msg"></p>
+    <div class="mbtns">
+      <button class="btn btn-cancel" onclick="closeM('m-confirm')">Annuler</button>
+      <button class="btn btn-del" id="c-ok">Supprimer</button>
     </div>
   </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// ════════════════════════════════════════════════
-// CONFIG — colle ton URL Apps Script ici
-// ════════════════════════════════════════════════
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbywdPQleOeH8u-L9ecVZnXP3CgDf2Hq2UPTqXVQpXsg1OeSamdLwxjCoxtHlTc42CFiog/exec';
 const ADMIN_PWD = 'sudouest2026';
-const POLL_INTERVAL = 15000; // ms
+const POLL = 15000;
 
-// ─── STATE ───
-let STAGES = {};
-let dispos = []; // {id, nom, ville, date, msg, status, timestamp}
-let isAdmin = false;
-let currentView = 'friend';
-let editingEtapeId = null;
-let mapMarkers = {};
-let polylineLayer = null;
-let poteMarkers = {};
-let poteCount = {};
+let STAGES = {}, dispos = [], isAdmin = false, view = 'friend';
+let editingId = null, confirmCb = null, syncing = false;
+let mapMarkers = {}, polyLine = null, poteMarkers = {}, poteCount = {};
 
-
-// ─── API HELPERS ───
+// ── API ──
 async function apiGet(action) {
   const res = await fetch(`${SCRIPT_URL}?action=${action}`);
-  const text = await res.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    console.error('Réponse non-JSON reçue pour', action, text.slice(0,200));
-    throw new Error('Réponse invalide du Sheet');
-  }
+  const txt = await res.text();
+  try { return JSON.parse(txt); } catch { throw new Error('Réponse invalide'); }
 }
-async function apiPost(payload) {
-  const res = await fetch(SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' }, // avoids CORS preflight on Apps Script
-    body: JSON.stringify(payload)
-  });
-  const text = await res.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    console.error('Réponse non-JSON reçue pour', payload.action, text.slice(0,200));
-    return { success: false, error: 'invalid_response' };
-  }
+async function apiPost(body) {
+  const res = await fetch(SCRIPT_URL, { method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify(body) });
+  const txt = await res.text();
+  try { return JSON.parse(txt); } catch { return {success:false}; }
 }
 
-function setSyncStatus(loading, text) {
-  document.getElementById('sync-dot').classList.toggle('loading', loading);
-  if (text) document.getElementById('sync-text').textContent = text;
+function setSync(loading, txt) {
+  document.getElementById('sdot').classList.toggle('spin', loading);
+  if(txt) document.getElementById('stxt').textContent = txt;
 }
 
 async function loadEtapes() {
   const raw = await apiGet('getEtapes');
   const obj = {};
-  raw.forEach(r => {
-    obj[r.id] = {
-      lat: parseFloat(r.lat), lng: parseFloat(r.lng), label: r.label,
-      type: r.type, color: r.color || '#378ADD',
-      surf: r.surf || '—', dodo: r.dodo || '—', info: r.info || '',
-      dates: r.dates || '', dateStart: r.dateStart || '', dateEnd: r.dateEnd || ''
-    };
-  });
+  raw.forEach(r => { obj[r.id] = {
+    lat:parseFloat(r.lat), lng:parseFloat(r.lng), label:r.label,
+    type:r.type, color:r.color||'#378ADD',
+    surf:r.surf||'—', dodo:r.dodo||'—', info:r.info||'',
+    dates:r.dates||'', dateStart:r.dateStart||'', dateEnd:r.dateEnd||''
+  }; });
   STAGES = obj;
 }
 
 async function loadDispos() {
   const raw = await apiGet('getDispos');
   dispos = raw.map(r => ({
-    id: String(r.id), nom: r.nom, ville: r.ville || '', date: r.date,
-    dateStart: r.dateStart || '', dateEnd: r.dateEnd || '',
-    overlapStart: r.overlapStart || '', overlapEnd: r.overlapEnd || '',
-    noOverlap: r.noOverlap || '',
-    msg: r.msg || '', status: r.status || 'pending', timestamp: r.timestamp
+    id:String(r.id), nom:r.nom||'', ville:r.ville||'',
+    date:r.date||'', dateStart:r.dateStart||'', dateEnd:r.dateEnd||'',
+    overlapStart:r.overlapStart||'', overlapEnd:r.overlapEnd||'',
+    noOverlap:r.noOverlap||'',
+    msg:r.msg||'', status:r.status||'pending', timestamp:r.timestamp||''
   }));
 }
 
-let syncInProgress = false;
-
-async function fullSync(showLoading=true) {
-  if (syncInProgress) return; // avoid overlapping calls hammering Apps Script
-  syncInProgress = true;
-  if (showLoading) setSyncStatus(true, 'Synchronisation...');
+async function fullSync(init=false) {
+  if(syncing) return;
+  syncing = true;
+  setSync(true, 'Synchronisation...');
   try {
     await Promise.all([loadEtapes(), loadDispos()]);
-    setSyncStatus(false, 'Connecté au Google Sheet');
-    renderEtapesBar();
-    renderMap();
-    refreshPoteMarkers();
-    updateBadge();
-    // Never silently re-render the sidebar while someone is on the friend
-    // view: any redraw replaces the <select>/<input> DOM nodes and wipes
-    // whatever they've started typing. Only the initial load (showLoading)
-    // or an explicit action (submit, view switch) is allowed to redraw it.
-    if (showLoading || currentView !== 'friend' || !document.getElementById('dispos-section')) {
-      renderSidebar();
+    setSync(false, 'Connecté au Google Sheet · dernière sync ' + new Date().toLocaleTimeString('fr', {hour:'2-digit',minute:'2-digit'}));
+    renderEbar();
+    updateBadges();
+    if(view === 'friend') {
+      renderMap();
+      refreshPoteMarkers();
+      if(init) renderFriend();
+      else updateFriendDisposList();
     } else {
-      // Still keep the "dispos confirmées" list and pending count fresh
-      // without touching the form fields above it.
-      updateDisposListOnly();
+      renderAdmin();
     }
-  } catch (err) {
-    setSyncStatus(false, '⚠️ Erreur de connexion au Sheet — nouvelle tentative...');
-    console.error(err);
-  } finally {
-    syncInProgress = false;
-  }
+  } catch(e) {
+    setSync(false, '⚠️ Erreur de connexion — nouvelle tentative dans 15s');
+    console.error(e);
+    if(init) { document.getElementById('view-friend').style.display='block'; document.getElementById('ebar').style.display='flex'; }
+  } finally { syncing = false; }
 }
 
-function updateDisposListOnly() {
-  const section = document.getElementById('dispos-section');
-  if (!section) return;
-  section.outerHTML = disposSectionFriend();
-  buildCalendarFriend();
+// ── MAP ──
+let mapInit = false;
+let leafMap;
+function initMap() {
+  if(mapInit) return;
+  mapInit = true;
+  leafMap = L.map('map').setView([43.95, -1.1], 8);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap',maxZoom:18}).addTo(leafMap);
 }
 
-// ─── MAP SETUP ───
-const map = L.map('map').setView([43.95, -1.1], 8);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 18 }).addTo(map);
-
-function makeIcon(color, size=14) {
-  return L.divIcon({ className:'', html:`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>`, iconAnchor:[size/2,size/2], popupAnchor:[0,-size/2] });
+function mkIcon(color, size=13) {
+  return L.divIcon({className:'',html:`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 2px 7px rgba(0,0,0,.3)"></div>`,iconAnchor:[size/2,size/2],popupAnchor:[0,-size/2]});
 }
 
 function renderMap() {
-  Object.values(mapMarkers).forEach(m => map.removeLayer(m));
+  initMap();
+  Object.values(mapMarkers).forEach(m => leafMap.removeLayer(m));
   mapMarkers = {};
-  if (polylineLayer) { map.removeLayer(polylineLayer); polylineLayer = null; }
-  const order = Object.keys(STAGES);
-  if (!order.length) return;
-  const coordsLine = order.map(id => [STAGES[id].lat, STAGES[id].lng]);
-  if (order.length > 1) coordsLine.push(coordsLine[0]);
-  polylineLayer = L.polyline(coordsLine, { color:'#378ADD', weight:2.5, dashArray:'8 5', opacity:0.55 }).addTo(map);
-  Object.entries(STAGES).forEach(([id, s]) => {
-    const size = (s.type==='depart' || s.type==='fete') ? 16 : 13;
-    const emoji = s.type==='pote' ? '🏠 ' : s.type==='fete' ? '🎉 ' : s.type==='surf' ? '🏄 ' : '📍 ';
-    const m = L.marker([s.lat, s.lng], { icon: makeIcon(s.color || '#378ADD', size) })
-      .addTo(map)
-      .bindPopup(`
-        <div class="popup-ville">${emoji}${s.label}</div>
-        <div class="popup-info">
-          ${s.dates ? `<div style="color:#534ab7;font-weight:600;margin-bottom:3px">📅 ${s.dates}</div>` : ''}
-          ${s.surf && s.surf !== '—' ? `<div style="color:#185fa5">🏄 ${s.surf}</div>` : ''}
-          <div style="color:#27500a">🚗 ${s.dodo}</div>
-          <div style="color:#999;margin-top:3px;font-size:10px">${s.info}</div>
-        </div>
-        <button class="popup-btn" onclick="selectVille('${id}')">Sélectionner cette étape</button>
-      `, { maxWidth: 230 })
-      .bindTooltip(s.label, { direction:'top', offset:[0,-8] });
+  if(polyLine) { leafMap.removeLayer(polyLine); polyLine = null; }
+  const ids = Object.keys(STAGES);
+  if(!ids.length) return;
+  const coords = ids.map(id => [STAGES[id].lat, STAGES[id].lng]);
+  if(coords.length > 1) coords.push(coords[0]);
+  polyLine = L.polyline(coords, {color:'#378ADD',weight:2.5,dashArray:'8 5',opacity:.55}).addTo(leafMap);
+  Object.entries(STAGES).forEach(([id,s]) => {
+    const em = {pote:'🏠 ',fete:'🎉 ',surf:'🏄 ',depart:'📍 '};
+    const sz = (s.type==='depart'||s.type==='fete') ? 16 : 13;
+    const m = L.marker([s.lat,s.lng],{icon:mkIcon(s.color||'#378ADD',sz)})
+      .addTo(leafMap)
+      .bindPopup(`<div class="popup-ville">${em[s.type]||'📍 '}${s.label}</div><div class="popup-info">${s.dates?`<div style="color:#534ab7;font-weight:600;margin-bottom:2px">📅 ${s.dates}</div>`:''} ${s.surf&&s.surf!=='—'?`<div style="color:#185fa5">🏄 ${s.surf}</div>`:''}<div>🚗 ${s.dodo}</div><div style="color:#aaa;font-size:10px;margin-top:2px">${s.info}</div></div>`,{maxWidth:220})
+      .bindTooltip(s.label,{direction:'top',offset:[0,-8]});
     mapMarkers[id] = m;
   });
 }
 
-function selectVille(id) {
-  // highlight the stage on the bar
-  document.querySelectorAll('.etape-btn').forEach(b => b.classList.remove('active'));
-  checkSlotAvailability();
-  map.closePopup();
-}
-
-function zoomVille(id, e) {
-  const s = STAGES[id]; if (!s) return;
-  map.setView([s.lat, s.lng], 12);
-  document.querySelectorAll('.etape-btn').forEach(b => b.classList.remove('active'));
-  if (e && e.currentTarget) e.currentTarget.classList.add('active');
-  checkSlotAvailability();
-}
-
-function clearPoteMarkers() { Object.values(poteMarkers).forEach(m => map.removeLayer(m)); poteMarkers = {}; poteCount = {}; }
-
-function addPoteMarker(d) {
-  const s = STAGES[d.ville]; if (!s) return;
-  poteCount[d.ville] = (poteCount[d.ville] || 0);
-  const off = poteCount[d.ville] * 0.013;
-  poteCount[d.ville]++;
-  const avatarColor = s.type === 'pote' ? '#D4537E' : s.color || '#1D9E75';
-  const m = L.marker([s.lat + off + 0.012, s.lng + off + 0.016], {
-    icon: L.divIcon({ className:'', html:`<div style="width:30px;height:30px;border-radius:50%;background:${avatarColor};border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${d.nom[0].toUpperCase()}</div>`, iconAnchor:[15,15], popupAnchor:[0,-15] })
-  }).addTo(map).bindPopup(`<b>${escHtml(d.nom)}</b><br>📍 ${s.label}<br>📅 ${formatDate(d.date)}${d.msg ? '<br><i style="color:#888">💬 ' + escHtml(d.msg) + '</i>' : ''}`);
-  poteMarkers[d.id] = m;
-}
-
+function clearPoteMarkers() { Object.values(poteMarkers).forEach(m => leafMap&&leafMap.removeLayer(m)); poteMarkers={}; poteCount={}; }
 function refreshPoteMarkers() {
   clearPoteMarkers();
-  dispos.filter(d => d.status === 'approved').forEach(d => addPoteMarker(d));
-}
-
-// ─── ETAPES BAR ───
-function renderEtapesBar() {
-  const bar = document.getElementById('etapes-bar');
-  const typeEmoji = { surf:'🏄', pote:'🏠', fete:'🎉', depart:'📍' };
-  bar.innerHTML = '<span class="bar-label">Zoom :</span>';
-  Object.entries(STAGES).forEach(([id, s]) => {
-    const btn = document.createElement('button');
-    btn.className = 'etape-btn';
-    btn.textContent = (typeEmoji[s.type] || '📍') + ' ' + s.label;
-    btn.onclick = (e) => zoomVille(id, e);
-    bar.appendChild(btn);
+  dispos.filter(d=>d.status==='approved'&&d.ville&&STAGES[d.ville]).forEach(d => {
+    const s = STAGES[d.ville];
+    poteCount[d.ville] = poteCount[d.ville]||0;
+    const off = poteCount[d.ville]*0.013; poteCount[d.ville]++;
+    const col = s.type==='pote'?'#D4537E':s.color||'#1D9E75';
+    const m = L.marker([s.lat+off+0.012,s.lng+off+0.016],{
+      icon:L.divIcon({className:'',html:`<div style="width:28px;height:28px;border-radius:50%;background:${col};border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">${d.nom[0].toUpperCase()}</div>`,iconAnchor:[14,14],popupAnchor:[0,-14]})
+    }).addTo(leafMap).bindPopup(`<b>${esc(d.nom)}</b><br>${s.label}<br>${d.dateStart&&d.dateEnd?`${fmtD(d.dateStart)}→${fmtD(d.dateEnd)}`:fmtDate(d.date)}${d.msg?'<br><i style="color:#888">'+esc(d.msg)+'</i>':''}`);
+    poteMarkers[d.id] = m;
   });
 }
 
-// ─── SIDEBAR ───
-function renderSidebar() {
-  const sb = document.getElementById('sidebar');
-  if (currentView === 'friend') renderFriendSidebar(sb);
-  else renderAdminSidebar(sb);
-}
-
-function renderFriendSidebar(sb) {
-  sb.innerHTML =
-    friendFormSection() +
-    planningSection(false) +
-    disposSectionFriend() +
-    calendarSectionFriend() +
-    legendSection();
-  document.getElementById('inp-date-start').addEventListener('change', checkSlotAvailability);
-  document.getElementById('inp-date-end').addEventListener('change', checkSlotAvailability);
-  buildCalendarFriend();
-}
-
-function renderAdminSidebar(sb) {
-  sb.innerHTML =
-    adminDashboard() +
-    planningSection(true) +
-    adminAddEtapeInline() +
-    legendSection();
-  buildCalendarAdmin();
-}
-
-// ─── PLANNING ───
-function planningSection(adminMode) {
-  const typeClass = { surf:'surf', pote:'pote', fete:'fete', depart:'libre' };
-  const typeColor = { surf:'#378ADD', pote:'#1D9E75', fete:'#BA7517', depart:'#888' };
-  let items = '';
-  Object.entries(STAGES).forEach(([id, s]) => {
-    const cls = typeClass[s.type] || 'libre';
-    const col = typeColor[s.type] || '#888';
-    const adminBtns = adminMode ? `
-      <div class="plan-actions">
-        <button class="plan-btn plan-btn-edit" onclick="editEtape('${id}')">✏️</button>
-        <button class="plan-btn plan-btn-del" onclick="confirmDeleteEtape('${id}')">🗑</button>
-      </div>` : '';
-    items += `
-      <div class="plan-item ${cls}">
-        <div class="plan-dot" style="background:${col}"></div>
-        <div class="plan-info">
-          <div class="plan-ville">${s.label}</div>
-          ${s.dates ? `<div class="plan-dates">📅 ${s.dates}</div>` : ''}
-          <div class="plan-detail">${s.dodo}</div>
-          ${s.surf && s.surf !== '—' ? `<div class="plan-note">🏄 ${s.surf}</div>` : ''}
-        </div>
-        ${adminBtns}
-      </div>`;
+// ── ETAPES BAR ──
+function renderEbar() {
+  const bar = document.getElementById('ebar');
+  const em = {surf:'🏄',pote:'🏠',fete:'🎉',depart:'📍'};
+  bar.innerHTML = '<span class="elbl">Zoom :</span>';
+  Object.entries(STAGES).forEach(([id,s]) => {
+    const b = document.createElement('button');
+    b.className = 'ebtn'; b.textContent = (em[s.type]||'📍')+' '+s.label;
+    b.onclick = () => { document.querySelectorAll('.ebtn').forEach(x=>x.classList.remove('on')); b.classList.add('on'); if(leafMap) leafMap.setView([s.lat,s.lng],12); };
+    bar.appendChild(b);
   });
-  if (!Object.keys(STAGES).length) items = `<div class="empty-state">Aucune étape — ajoute-en une !</div>`;
-  return `<div class="sidebar-section">
-    <div class="section-title">🗓 Planning ${adminMode ? '<span style="color:var(--blue);text-transform:none;letter-spacing:0;font-size:10px">(cliquer ✏️ pour modifier)</span>' : 'indicatif'}</div>
-    <div class="planning">${items}</div>
-  </div>`;
 }
 
-// ─── FRIEND FORM ───
-function friendFormSection() {
-  return `<div class="sidebar-section">
-    <div class="section-title">📅 Je suis dispo !</div>
-    <div class="info-box">
-      <strong>Comment ça marche ?</strong>
-      Indique tes dates de dispo et l'app calcule automatiquement les jours où on se croise selon mon planning. Ta proposition sera validée par l'admin avant d'apparaître. 🗺️
-    </div>
-    <div class="form-group">
-      <label>Ton prénom</label>
-      <input type="text" id="inp-nom" placeholder="ex : Thomas" maxlength="40"/>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>📅 Tu arrives le</label>
-        <input type="date" id="inp-date-start" min="2026-07-08" max="2026-07-20"/>
-      </div>
-      <div class="form-group">
-        <label>📅 Tu repars le</label>
-        <input type="date" id="inp-date-end" min="2026-07-08" max="2026-07-20"/>
-      </div>
-    </div>
-    <div id="overlap-result" style="margin-bottom:8px"></div>
-    <div class="form-group">
-      <label>Message (optionnel)</label>
-      <input type="text" id="inp-msg" placeholder="ex : Je viens en voiture, je peux prendre quelqu'un !"/>
-    </div>
-    <button class="btn-submit green" id="btn-add-dispo" onclick="addDispo()">✓ Proposer ma dispo</button>
-  </div>`;
+function updateBadges() {
+  const app = dispos.filter(d=>d.status==='approved').length;
+  const pend = dispos.filter(d=>d.status==='pending').length;
+  document.getElementById('b-dispos').textContent = app+' dispo'+(app>1?'s':'');
+  const bp = document.getElementById('b-pending');
+  bp.style.display = pend ? 'inline-flex' : 'none';
+  bp.textContent = '⏳ '+pend+' en attente';
 }
 
-function populateVilleSelect(id) {
-  const sel = document.getElementById(id);
-  if (!sel) return;
-  const val = sel.value;
-  sel.innerHTML = '<option value="">Choisir une étape...</option>';
-  Object.entries(STAGES).forEach(([k, s]) => {
-    if (s.type === 'depart') return;
-    const opt = document.createElement('option');
-    opt.value = k; opt.textContent = s.label;
-    sel.appendChild(opt);
-  });
-  if (val) sel.value = val;
-}
-
-// Compute overlapping days between pote's range and each stage's dateStart/dateEnd
-function computeOverlaps(dateStart, dateEnd) {
-  if (!dateStart || !dateEnd || dateStart > dateEnd) return [];
-  const results = [];
-  const pStart = new Date(dateStart);
-  const pEnd   = new Date(dateEnd);
-  Object.entries(STAGES).forEach(([id, s]) => {
-    if (s.type === 'depart') return;
-    if (!s.dateStart || !s.dateEnd) return;
-    const sStart = new Date(s.dateStart);
-    const sEnd   = new Date(s.dateEnd);
-    const oStart = pStart > sStart ? pStart : sStart;
-    const oEnd   = pEnd   < sEnd   ? pEnd   : sEnd;
-    if (oStart <= oEnd) {
-      const days = [];
-      for (let d = new Date(oStart); d <= oEnd; d.setDate(d.getDate()+1)) {
-        days.push(new Date(d).toISOString().slice(0,10));
-      }
-      results.push({ id, label: s.label, color: s.color, days });
+// ── OVERLAP ──
+function computeOverlaps(ds, de) {
+  if(!ds||!de||ds>de) return [];
+  const pS=new Date(ds), pE=new Date(de), res=[];
+  Object.entries(STAGES).forEach(([id,s]) => {
+    if(s.type==='depart'||!s.dateStart||!s.dateEnd) return;
+    const sS=new Date(s.dateStart), sE=new Date(s.dateEnd);
+    const oS = pS>sS?pS:sS, oE = pE<sE?pE:sE;
+    if(oS<=oE) {
+      const days=[];
+      for(let d=new Date(oS);d<=oE;d.setDate(d.getDate()+1)) days.push(new Date(d).toISOString().slice(0,10));
+      res.push({id,label:s.label,color:s.color,days});
     }
   });
-  return results;
-}
-
-function checkSlotAvailability() {
-  const dateStart = document.getElementById('inp-date-start')?.value;
-  const dateEnd   = document.getElementById('inp-date-end')?.value;
-  const el = document.getElementById('overlap-result');
-  if (!el) return;
-
-  if (!dateStart || !dateEnd) { el.innerHTML = ''; return; }
-  if (dateStart > dateEnd) {
-    el.innerHTML = `<div style="background:#fff3f3;border:1px solid #fcc;border-radius:7px;padding:6px 9px;font-size:11px;color:#c44">⚠️ La date de départ doit être après l'arrivée.</div>`;
-    return;
-  }
-
-  const overlaps = computeOverlaps(dateStart, dateEnd);
-  if (!overlaps.length) {
-    el.innerHTML = `<div style="background:#fff8e6;border:1px solid #fac775;border-radius:7px;padding:8px 10px;font-size:11px;color:#854f0b">
-      😕 Aucun chevauchement avec mon planning sur ces dates. Tu peux quand même envoyer ta dispo !
-    </div>`;
-    return;
-  }
-
-  let html = `<div style="background:#eaf3de;border:1px solid #c0dd97;border-radius:8px;padding:9px 11px;font-size:11px">
-    <div style="font-weight:700;color:#27500a;margin-bottom:6px">🎉 On se croise sur ces créneaux :</div>`;
-  overlaps.forEach(o => {
-    const fmtDays = o.days.map(d => parseInt(d.split('-')[2])).join(', ');
-    html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-      <span style="width:7px;height:7px;border-radius:50%;background:${o.color};flex-shrink:0;display:inline-block"></span>
-      <span style="font-weight:600;color:#1a1a1a">${o.label}</span>
-      <span style="color:#555">· ${fmtDays} juil.</span>
-    </div>`;
-  });
-  html += `</div>`;
-  el.innerHTML = html;
-}
-
-// ─── DISPOS — FRIEND VIEW ───
-function disposSectionFriend() {
-  const approved = dispos.filter(d => d.status === 'approved');
-  const byVille = {};
-  approved.forEach(d => { if (!byVille[d.ville]) byVille[d.ville] = []; byVille[d.ville].push(d); });
-
-  const typeColor = { pote:'#D4537E', surf:'#378ADD', fete:'#BA7517', depart:'#888' };
-  const typeBg = { pote:'pink-bg', surf:'blue-bg', fete:'orange-bg', depart:'green-bg' };
-
-  let html = '';
-  if (!approved.length) {
-    html = `<div class="empty-state">Aucune dispo confirmée pour l'instant 👋</div>`;
-  } else {
-    Object.entries(byVille).forEach(([ville, arr]) => {
-      const s = STAGES[ville]; if (!s) return;
-      html += `<div class="dispo-group-title">📍 ${s.label}</div>`;
-      arr.sort((a,b) => (a.dateStart||a.date||'').localeCompare(b.dateStart||b.date||'')).forEach(d => {
-        const col = typeColor[s.type] || '#1D9E75';
-        const bg = typeBg[s.type] || 'green-bg';
-        // Show overlap days if available
-        let datesHtml = '';
-        if (d.dateStart && d.dateEnd) {
-          const overlaps = computeOverlaps(d.dateStart, d.dateEnd);
-          const ov = overlaps.find(o => o.id === ville);
-          if (ov && ov.days.length) {
-            const fmtDays = ov.days.map(x => parseInt(x.split('-')[2])).join(', ');
-            datesHtml = `<span style="color:#27500a;font-weight:600"> · ensemble : ${fmtDays} juil.</span>`;
-          } else {
-            const ds = parseInt(d.dateStart.split('-')[2]);
-            const de = parseInt(d.dateEnd.split('-')[2]);
-            datesHtml = ` · dispo ${ds}→${de} juil.`;
-          }
-        } else if (d.date) {
-          datesHtml = ` · ${formatDate(d.date)}`;
-        }
-        html += `<div class="dispo-item ${bg}">
-          <div class="dispo-avatar" style="background:${col}">${d.nom[0].toUpperCase()}</div>
-          <div style="flex:1">
-            <div class="dispo-name">${escHtml(d.nom)}</div>
-            <div class="dispo-detail">📅${datesHtml}${d.msg ? '<br>💬 ' + escHtml(d.msg) : ''}</div>
-          </div>
-        </div>`;
-      });
-    });
-  }
-  const pendingCount = dispos.filter(d => d.status === 'pending').length;
-  return `<div class="sidebar-section" id="dispos-section">
-    <div class="section-title">👥 Dispos confirmées <span class="count-pill">${approved.length}</span></div>
-    ${pendingCount ? `<p style="font-size:11px;color:#aaa;margin-bottom:8px">⏳ ${pendingCount} en attente de validation</p>` : ''}
-    <div class="dispo-list" id="dispo-list">${html}</div>
-  </div>`;
-}
-
-// ─── ADMIN ADD ETAPE INLINE ───
-function adminAddEtapeInline() {
-  return `<div class="sidebar-section" style="background:#f9f9fb">
-    <div class="section-title">⚙️ Gestion des étapes</div>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Utilise les boutons ✏️ et 🗑 dans le planning ci-dessus, ou ajoute une nouvelle étape.</p>
-    <button class="btn-submit" onclick="showAddEtapeModal()" style="margin-top:0">+ Ajouter une étape</button>
-  </div>`;
-}
-
-// ─── LEGEND ───
-function legendSection() {
-  return `<div class="sidebar-section">
-    <div class="section-title">🗺 Légende</div>
-    <div class="legend">
-      <div class="leg-item"><div class="leg-dot" style="background:#E24B4A"></div> Bordeaux (départ / retour)</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#1D9E75"></div> Chez un pote</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#378ADD"></div> Étape surf (caisse)</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#BA7517"></div> Fêtes de Bayonne</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#D4537E"></div> Pote dispo confirmé</div>
-    </div>
-  </div>`;
-}
-
-// ─── ADD DISPO (friend → goes to "pending") ───
-async function addDispo() {
-  const nom       = document.getElementById('inp-nom')?.value.trim();
-  const dateStart = document.getElementById('inp-date-start')?.value;
-  const dateEnd   = document.getElementById('inp-date-end')?.value;
-  const msg       = document.getElementById('inp-msg')?.value.trim();
-
-  if (!nom) { showToast('Remplis ton prénom !', 'error'); return; }
-  if (!dateStart || !dateEnd) { showToast('Choisis tes dates d\'arrivée et de départ !', 'error'); return; }
-  if (dateStart > dateEnd) { showToast('La date de départ doit être après l\'arrivée !', 'error'); return; }
-
-  // Compute overlaps to find which stages the pote crosses
-  const overlaps = computeOverlaps(dateStart, dateEnd);
-
-  // One dispo entry per overlapping stage (or one generic if none)
-  const entries = overlaps.length
-    ? overlaps.map(o => ({ ville: o.id, overlapDays: o.days }))
-    : [{ ville: '', overlapDays: [] }]; // no match — still send with ⚠️
-
-  const btn = document.getElementById('btn-add-dispo');
-  btn.disabled = true; btn.textContent = 'Envoi en cours...';
-
-  try {
-    for (const entry of entries) {
-      await apiPost({
-        action: 'addDispo',
-        nom, msg,
-        ville: entry.ville,
-        date: dateStart, // kept for backward compat display
-        dateStart, dateEnd,
-        overlapStart: entry.overlapDays[0] || '',
-        overlapEnd:   entry.overlapDays[entry.overlapDays.length-1] || '',
-        noOverlap:    overlaps.length === 0 ? '1' : ''
-      });
-    }
-
-    // Friendly confirmation message
-    let confirmMsg = '';
-    if (!overlaps.length) {
-      confirmMsg = `✓ Dispo envoyée ! Aucune étape ne correspond exactement à tes dates — l'admin verra ça.`;
-    } else if (overlaps.length === 1) {
-      const days = overlaps[0].days.map(d => parseInt(d.split('-')[2]));
-      const label = overlaps[0].label;
-      if (days.length === 1) {
-        confirmMsg = `✓ Envoyé ! On se croise le ${days[0]} juil. à ${label} 🤙`;
-      } else {
-        confirmMsg = `✓ Envoyé ! On se croise du ${days[0]} au ${days[days.length-1]} juil. à ${label} 🤙`;
-      }
-    } else {
-      const lieux = overlaps.map(o => o.label).join(', ');
-      confirmMsg = `✓ Envoyé ! On se croise à ${lieux} 🤙`;
-    }
-    showToast(confirmMsg, 'success');
-
-    // Reset form
-    document.getElementById('inp-nom').value = '';
-    document.getElementById('inp-date-start').value = '';
-    document.getElementById('inp-date-end').value = '';
-    document.getElementById('inp-msg').value = '';
-    document.getElementById('overlap-result').innerHTML = '';
-
-    await fullSync(false);
-  } catch (err) {
-    showToast('Erreur de connexion au Sheet.', 'error');
-    console.error(err);
-  }
-  btn.disabled = false; btn.textContent = '✓ Proposer ma dispo';
-}
-
-// ─── ADMIN: VALIDATE / REJECT ───
-async function validateDispo(id, status) {
-  try {
-    const result = await apiPost({ action:'updateDispoStatus', id, status });
-    if (result.success) {
-      showToast(status === 'approved' ? '✓ Dispo validée et mise en ligne' : 'Dispo refusée', 'success');
-      await fullSync(false);
-    } else {
-      showToast('Erreur lors de la mise à jour.', 'error');
-    }
-  } catch (err) { showToast('Erreur de connexion.', 'error'); console.error(err); }
-}
-
-// ─── DELETE DISPO (admin only, for approved/rejected lists) ───
-function confirmDeleteDispo(id) {
-  const d = dispos.find(x => x.id === id);
-  if (!d) return;
-  showConfirm(`Supprimer la dispo de ${d.nom} ?`, `${d.nom} — ${STAGES[d.ville]?.label || d.ville} — ${formatDate(d.date)}`, async () => {
-    try {
-      const result = await apiPost({ action:'deleteDispo', id });
-      if (result.success) { showToast('Dispo supprimée', 'success'); await fullSync(false); }
-      else showToast('Erreur lors de la suppression.', 'error');
-    } catch (err) { showToast('Erreur de connexion.', 'error'); console.error(err); }
-  }, 'Supprimer');
-}
-
-// ─── ADMIN: ETAPES ───
-function showAddEtapeModal() {
-  editingEtapeId = null;
-  document.getElementById('modal-etape-title').textContent = '➕ Nouvelle étape';
-  ['e-id','e-label','e-lat','e-lng','e-surf','e-dodo','e-info','e-date-start','e-date-end'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('e-type').value = 'surf';
-  document.getElementById('e-id').disabled = false;
-  document.getElementById('etape-error').classList.remove('show');
-  showModal('modal-etape');
-}
-
-function editEtape(id) {
-  const s = STAGES[id]; if (!s) return;
-  editingEtapeId = id;
-  document.getElementById('modal-etape-title').textContent = `✏️ Modifier — ${s.label}`;
-  document.getElementById('e-id').value = id;
-  document.getElementById('e-id').disabled = true;
-  document.getElementById('e-label').value = s.label;
-  document.getElementById('e-lat').value = s.lat;
-  document.getElementById('e-lng').value = s.lng;
-  document.getElementById('e-type').value = s.type;
-  document.getElementById('e-surf').value = s.surf || '';
-  document.getElementById('e-dodo').value = s.dodo || '';
-  document.getElementById('e-info').value = s.info || '';
-  document.getElementById('e-date-start').value = s.dateStart || '';
-  document.getElementById('e-date-end').value = s.dateEnd || '';
-  document.getElementById('etape-error').classList.remove('show');
-  showModal('modal-etape');
-}
-
-async function saveEtape() {
-  const id    = editingEtapeId || document.getElementById('e-id').value.trim().replace(/\s+/g,'_').toLowerCase();
-  const label = document.getElementById('e-label').value.trim();
-  const lat   = parseFloat(document.getElementById('e-lat').value);
-  const lng   = parseFloat(document.getElementById('e-lng').value);
-  if (!id || !label || isNaN(lat) || isNaN(lng)) { document.getElementById('etape-error').classList.add('show'); return; }
-
-  const typeColors = { surf:'#378ADD', pote:'#1D9E75', fete:'#BA7517', depart:'#E24B4A' };
-  const type = document.getElementById('e-type').value;
-  const dateStart = document.getElementById('e-date-start').value;
-  const dateEnd   = document.getElementById('e-date-end').value;
-
-  // Build a human-readable dates string from the two pickers
-  function fmtShort(iso) {
-    if (!iso) return '';
-    const [,m,d] = iso.split('-');
-    return parseInt(d) + ' juil.';
-  }
-  let datesLabel = '';
-  if (dateStart && dateEnd && dateStart !== dateEnd) {
-    datesLabel = `${parseInt(dateStart.split('-')[2])}→${parseInt(dateEnd.split('-')[2])} juil.`;
-  } else if (dateStart) {
-    datesLabel = fmtShort(dateStart);
-  }
-
-  const payload = {
-    action: 'saveEtape', id, label, lat, lng, type,
-    color: typeColors[type] || '#378ADD',
-    surf:  document.getElementById('e-surf').value.trim() || '—',
-    dodo:  document.getElementById('e-dodo').value.trim() || '—',
-    info:  document.getElementById('e-info').value.trim(),
-    dates: datesLabel,
-    dateStart,
-    dateEnd,
-  };
-  try {
-    const result = await apiPost(payload);
-    if (result.success) {
-      closeModal('modal-etape');
-      showToast(`✓ Étape "${label}" enregistrée`, 'success');
-      await fullSync(false);
-    } else showToast('Erreur lors de l\'enregistrement.', 'error');
-  } catch (err) { showToast('Erreur de connexion.', 'error'); console.error(err); }
-}
-
-function confirmDeleteEtape(id) {
-  const s = STAGES[id];
-  showConfirm(`Supprimer l'étape "${s.label}" ?`, 'Les dispos liées resteront dans le Sheet mais ne seront plus affichées sur la carte.', async () => {
-    try {
-      const result = await apiPost({ action:'deleteEtape', id });
-      if (result.success) { showToast('Étape supprimée', 'success'); await fullSync(false); }
-      else showToast('Erreur lors de la suppression.', 'error');
-    } catch (err) { showToast('Erreur de connexion.', 'error'); console.error(err); }
-  }, 'Supprimer');
-}
-
-// ─── CALENDAR (friend) ───
-function calendarSectionFriend() {
-  return `<div class="sidebar-section" id="cal-friend-section">
-    <div class="section-title">📆 Calendrier des dispos</div>
-    <div id="cal-friend-grid" style="overflow-x:auto"></div>
-  </div>`;
-}
-
-function buildCalendarFriend() {
-  const el = document.getElementById('cal-friend-grid');
-  if (!el) return;
-  const days = Array.from({length:13}, (_,i) => 8+i);
-  const stageList = Object.entries(STAGES).filter(([,s]) => s.type !== 'depart');
-  const approved = dispos.filter(d => d.status === 'approved');
-
-  let html = `<div style="display:grid;grid-template-columns:52px repeat(13,1fr);gap:2px;min-width:300px">`;
-  // Header row
-  html += `<div style="font-size:9px;color:#aaa"></div>`;
-  days.forEach(d => {
-    html += `<div style="text-align:center;font-size:9px;color:#aaa;padding-bottom:3px">${d}</div>`;
-  });
-  // Stage rows
-  stageList.forEach(([id, s]) => {
-    html += `<div style="font-size:9px;font-weight:600;color:#555;padding-right:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px">
-      <span style="width:6px;height:6px;border-radius:50%;background:${s.color};flex-shrink:0;display:inline-block"></span>${s.label.split('/')[0].trim()}
-    </div>`;
-    days.forEach(d => {
-      const dateStr = `2026-07-${String(d).padStart(2,'0')}`;
-      const potes = approved.filter(dp => dp.ville === id && dp.date === dateStr);
-      const isInRange = stageInRange(s, d);
-      let cell = '';
-      if (potes.length) {
-        const initials = potes.map(p => p.nom[0].toUpperCase()).join('');
-        cell = `<div title="${potes.map(p=>p.nom).join(', ')}" style="height:20px;border-radius:3px;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;cursor:default">${initials.slice(0,2)}</div>`;
-      } else if (isInRange) {
-        cell = `<div style="height:20px;border-radius:3px;background:${s.color};opacity:0.15"></div>`;
-      } else {
-        cell = `<div style="height:20px;border-radius:3px;background:#f5f4f0"></div>`;
-      }
-      html += cell;
-    });
-  });
-  html += `</div>`;
-  html += `<div style="font-size:10px;color:#aaa;margin-top:6px">Juillet 2026 · Initiales = pote confirmé sur ce créneau</div>`;
-  el.innerHTML = html;
+  return res;
 }
 
 function stageInRange(s, day) {
-  // Use precise ISO dates if available
-  if (s.dateStart && s.dateEnd) {
-    const start = parseInt(s.dateStart.split('-')[2]);
-    const end   = parseInt(s.dateEnd.split('-')[2]);
-    return day >= start && day <= end;
-  }
-  if (s.dateStart) return day === parseInt(s.dateStart.split('-')[2]);
-  // Fallback: parse text like "9→11 juil." or "8 juil. soir"
-  if (!s.dates) return false;
-  const m = s.dates.match(/(\d+)→(\d+)/);
-  if (m) return day >= parseInt(m[1]) && day <= parseInt(m[2]);
-  const single = s.dates.match(/^(\d+)/);
-  if (single) return day === parseInt(single[1]);
+  if(s.dateStart&&s.dateEnd) { const a=parseInt(s.dateStart.split('-')[2]),b=parseInt(s.dateEnd.split('-')[2]); return day>=a&&day<=b; }
+  if(!s.dates) return false;
+  const m=s.dates.match(/(\d+)→(\d+)/); if(m) return day>=parseInt(m[1])&&day<=parseInt(m[2]);
+  const m2=s.dates.match(/^(\d+)/); if(m2) return day===parseInt(m2[1]);
   return false;
 }
 
-// ─── ADMIN DASHBOARD ───
-function adminDashboard() {
-  const pending  = dispos.filter(d => d.status === 'pending');
-  const approved = dispos.filter(d => d.status === 'approved');
-  const rejected = dispos.filter(d => d.status === 'rejected');
-  const poteNames = [...new Set(approved.map(d => d.nom))];
+// ── FRIEND VIEW ──
+function renderFriend() {
+  document.getElementById('view-friend').style.display = 'block';
+  document.getElementById('ebar').style.display = 'flex';
+  renderMap();
+  const sb = document.getElementById('fsb');
+  sb.innerHTML = friendFormHTML() + planningHTML() + disposFriendHTML() + calFriendHTML() + legendHTML();
+  document.getElementById('inp-ds').addEventListener('change', updateOverlapPreview);
+  document.getElementById('inp-de').addEventListener('change', updateOverlapPreview);
+  buildCalFriend();
+}
 
-  const days = Array.from({length:13}, (_,i) => 8+i);
-  const stageList = Object.entries(STAGES).filter(([,s]) => s.type !== 'depart');
+function updateFriendDisposList() {
+  const d = document.getElementById('dispos-friend');
+  if(d) { d.outerHTML = disposFriendHTML(); }
+  const c = document.getElementById('cal-friend');
+  if(c) buildCalFriend();
+}
 
-  // Stat cards
-  let stats = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
-    <div style="background:#f5f4f0;border-radius:8px;padding:10px 12px">
-      <div style="font-size:10px;color:#888;margin-bottom:3px">Étapes</div>
-      <div style="font-size:22px;font-weight:700;color:#1a1a1a">${Object.keys(STAGES).length}</div>
+function friendFormHTML() {
+  return `<div class="sec">
+    <div class="sttl">📅 Je suis dispo !</div>
+    <div class="infobox"><strong>Comment ça marche ?</strong>Mets tes dates, l'app calcule où on se croise. Moi je valide avant que ça s'affiche pour tout le monde !</div>
+    <div class="fg"><label>Ton prénom</label><input type="text" id="inp-nom" placeholder="ex : Thomas" maxlength="40"/></div>
+    <div class="frow">
+      <div class="fg"><label>📅 Tu arrives le</label><input type="date" id="inp-ds" min="2026-07-08" max="2026-07-20"/></div>
+      <div class="fg"><label>📅 Tu repars le</label><input type="date" id="inp-de" min="2026-07-08" max="2026-07-20"/></div>
     </div>
-    <div style="background:#eaf3de;border-radius:8px;padding:10px 12px">
-      <div style="font-size:10px;color:#3b6d11;margin-bottom:3px">Confirmées</div>
-      <div style="font-size:22px;font-weight:700;color:#1D9E75">${approved.length}</div>
-    </div>
-    <div style="background:#fff8e6;border-radius:8px;padding:10px 12px">
-      <div style="font-size:10px;color:#854f0b;margin-bottom:3px">En attente</div>
-      <div style="font-size:22px;font-weight:700;color:#BA7517">${pending.length}</div>
-    </div>
-    <div style="background:#e6f1fb;border-radius:8px;padding:10px 12px">
-      <div style="font-size:10px;color:#185fa5;margin-bottom:3px">Potes</div>
-      <div style="font-size:22px;font-weight:700;color:#378ADD">${poteNames.length}</div>
-    </div>
-  </div>`;
-
-  // Calendar grid (placeholder, filled by buildCalendarAdmin)
-  let cal = `<div style="background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:12px;margin-bottom:12px">
-    <div style="font-size:11px;font-weight:700;color:#444;letter-spacing:.4px;text-transform:uppercase;margin-bottom:10px">📆 Calendrier</div>
-    <div id="cal-admin-grid" style="overflow-x:auto"></div>
-  </div>`;
-
-  // Pending validations
-  let pendingHtml = '';
-  if (pending.length) {
-    pendingHtml = `<div style="background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:12px;margin-bottom:12px">
-      <div style="font-size:11px;font-weight:700;color:#444;letter-spacing:.4px;text-transform:uppercase;margin-bottom:10px">⏳ En attente de validation (${pending.length})</div>
-      <div style="display:flex;flex-direction:column;gap:7px">`;
-    pending.sort((a,b) => (b.timestamp||'').localeCompare(a.timestamp||'')).forEach(d => {
-      const s = STAGES[d.ville];
-      const villeLabel = s ? s.label : (d.ville || '—');
-      const dateRange = d.dateStart && d.dateEnd
-        ? `${parseInt(d.dateStart.split('-')[2])}→${parseInt(d.dateEnd.split('-')[2])} juil.`
-        : formatDate(d.date);
-      const overlapInfo = d.overlapStart && d.overlapEnd
-        ? `<span style="color:#27500a;font-weight:600"> · ensemble : ${parseInt(d.overlapStart.split('-')[2])}→${parseInt(d.overlapEnd.split('-')[2])} juil.</span>`
-        : '';
-      const noOvWarning = d.noOverlap === '1'
-        ? `<span style="color:#c44"> ⚠️ Aucune étape en commun</span>` : '';
-      pendingHtml += `<div style="display:flex;align-items:center;gap:8px;background:#fff8e6;border:1px solid #fac775;border-radius:8px;padding:9px 10px">
-        <div style="width:26px;height:26px;border-radius:50%;background:#BA7517;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0">${d.nom[0].toUpperCase()}</div>
-        <div style="flex:1">
-          <div style="font-weight:600;font-size:12px">${escHtml(d.nom)} ${noOvWarning}</div>
-          <div style="font-size:11px;color:#555">📍 ${villeLabel} · 📅 ${dateRange}${overlapInfo}${d.msg?'<br>💬 '+escHtml(d.msg):''}</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:3px">
-          <button class="vbtn vbtn-ok" onclick="validateDispo('${d.id}','approved')">✓ Valider</button>
-          <button class="vbtn vbtn-no" onclick="validateDispo('${d.id}','rejected')">✕ Refuser</button>
-        </div>
-      </div>`;
-    });
-    pendingHtml += `</div></div>`;
-  }
-
-  // Approved list
-  let approvedHtml = `<div style="background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:12px;margin-bottom:12px">
-    <div style="font-size:11px;font-weight:700;color:#444;letter-spacing:.4px;text-transform:uppercase;margin-bottom:10px">✅ Dispos confirmées (${approved.length})</div>`;
-  if (!approved.length) {
-    approvedHtml += `<div style="font-size:12px;color:#aaa;font-style:italic;text-align:center;padding:10px 0">Aucune dispo validée</div>`;
-  } else {
-    approvedHtml += `<div style="display:flex;flex-direction:column;gap:5px">`;
-    approved.sort((a,b)=>(a.dateStart||a.date||'').localeCompare(b.dateStart||b.date||'')).forEach(d => {
-      const s = STAGES[d.ville];
-      const col = s ? s.color : '#1D9E75';
-      const dateRange = d.dateStart && d.dateEnd
-        ? `${parseInt(d.dateStart.split('-')[2])}→${parseInt(d.dateEnd.split('-')[2])} juil.`
-        : formatDate(d.date);
-      const overlapInfo = d.overlapStart && d.overlapEnd
-        ? ` · ensemble ${parseInt(d.overlapStart.split('-')[2])}→${parseInt(d.overlapEnd.split('-')[2])} juil.`
-        : '';
-      approvedHtml += `<div style="display:flex;align-items:center;gap:7px;padding:6px 8px;background:#eaf3de;border:1px solid #c0dd97;border-radius:7px">
-        <div style="width:22px;height:22px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${d.nom[0].toUpperCase()}</div>
-        <div style="flex:1;font-size:11px;font-weight:600">${escHtml(d.nom)}</div>
-        <div style="font-size:10px;color:#555">${s?s.label:'?'} · ${dateRange}${overlapInfo}</div>
-        <button class="dispo-delete" onclick="confirmDeleteDispo('${d.id}')" title="Supprimer">×</button>
-      </div>`;
-    });
-    approvedHtml += `</div>`;
-  }
-  approvedHtml += `</div>`;
-
-  return `<div class="sidebar-section" style="background:#f9f9fb">
-    <div class="section-title">📊 Dashboard</div>
-    ${stats}${cal}${pendingHtml}${approvedHtml}
+    <div id="ov-preview" style="margin-bottom:8px"></div>
+    <div class="fg"><label>Message (optionnel)</label><input type="text" id="inp-msg" placeholder="ex : Je viens en voiture !"/></div>
+    <button class="bsub" id="btn-sub" onclick="submitDispo()">✓ Proposer ma dispo</button>
   </div>`;
 }
 
-function buildCalendarAdmin() {
-  const el = document.getElementById('cal-admin-grid');
-  if (!el) return;
-  const days = Array.from({length:13}, (_,i) => 8+i);
-  const stageList = Object.entries(STAGES).filter(([,s]) => s.type !== 'depart');
-  const approved = dispos.filter(d => d.status === 'approved');
-  const pending  = dispos.filter(d => d.status === 'pending');
-
-  let html = `<div style="display:grid;grid-template-columns:52px repeat(13,1fr);gap:2px;min-width:300px">`;
-  // Header
-  html += `<div style="font-size:9px;color:#aaa"></div>`;
-  days.forEach(d => {
-    html += `<div style="text-align:center;font-size:9px;color:#aaa;padding-bottom:3px">${d}</div>`;
+function updateOverlapPreview() {
+  const ds = document.getElementById('inp-ds')?.value;
+  const de = document.getElementById('inp-de')?.value;
+  const el = document.getElementById('ov-preview'); if(!el) return;
+  if(!ds||!de) { el.innerHTML=''; return; }
+  if(ds>de) { el.innerHTML=`<div style="background:#fff3f3;border:1px solid #fcc;border-radius:7px;padding:6px 9px;font-size:11px;color:#c44">⚠️ La date de départ doit être après l'arrivée.</div>`; return; }
+  const ovs = computeOverlaps(ds, de);
+  if(!ovs.length) { el.innerHTML=`<div style="background:#fff8e6;border:1px solid #fac775;border-radius:7px;padding:8px 10px;font-size:11px;color:#854f0b">😕 Aucun créneau commun avec mon planning — tu peux quand même envoyer ta dispo !</div>`; return; }
+  let h = `<div style="background:var(--green-light);border:1px solid #c0dd97;border-radius:8px;padding:9px 11px;font-size:11px"><div style="font-weight:700;color:#27500a;margin-bottom:5px">🎉 On se croise :</div>`;
+  ovs.forEach(o => {
+    const days = o.days.map(d=>parseInt(d.split('-')[2]));
+    const rng = days.length===1 ? `le ${days[0]} juil.` : `du ${days[0]} au ${days[days.length-1]} juil. (${days.length}j)`;
+    h += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><span style="width:7px;height:7px;border-radius:50%;background:${o.color};display:inline-block;flex-shrink:0"></span><span style="font-weight:600">${o.label}</span><span style="color:#555"> · ${rng}</span></div>`;
   });
-  // Rows
-  stageList.forEach(([id, s]) => {
-    html += `<div style="font-size:9px;font-weight:600;color:#555;padding-right:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px">
-      <span style="width:6px;height:6px;border-radius:50%;background:${s.color};flex-shrink:0;display:inline-block"></span>${s.label.split('/')[0].trim()}
+  el.innerHTML = h + '</div>';
+}
+
+function planningHTML() {
+  const tc={surf:'surf',pote:'pote',fete:'fete',depart:'libre'};
+  const col={surf:'#378ADD',pote:'#1D9E75',fete:'#BA7517',depart:'#888'};
+  let h = '';
+  Object.entries(STAGES).forEach(([id,s]) => {
+    h += `<div class="plan-item ${tc[s.type]||'libre'}">
+      <div class="pdot" style="background:${col[s.type]||'#888'}"></div>
+      <div class="pinfo">
+        <div class="pv">${s.label}</div>
+        ${s.dates?`<div class="pdate">📅 ${s.dates}</div>`:''}
+        <div class="pd">${s.dodo}</div>
+        ${s.surf&&s.surf!=='—'?`<div class="pnote">🏄 ${s.surf}</div>`:''}
+      </div>
     </div>`;
-    days.forEach(d => {
-      const dateStr = `2026-07-${String(d).padStart(2,'0')}`;
-      const app = approved.filter(dp => dp.ville === id && dp.date === dateStr);
-      const pend = pending.filter(dp => dp.ville === id && dp.date === dateStr);
-      const isInRange = stageInRange(s, d);
-      let cell = '';
-      if (app.length) {
-        const initials = app.map(p => p.nom[0].toUpperCase()).join('');
-        cell = `<div title="${app.map(p=>p.nom).join(', ')}" style="height:20px;border-radius:3px;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;cursor:default;position:relative">
-          ${initials.slice(0,2)}
-          ${pend.length ? `<span style="position:absolute;top:-2px;right:-2px;width:6px;height:6px;border-radius:50%;background:#BA7517;border:1px solid #fff"></span>` : ''}
-        </div>`;
-      } else if (pend.length) {
-        cell = `<div title="${pend.map(p=>p.nom+' (en attente)').join(', ')}" style="height:20px;border-radius:3px;background:#fac775;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#854f0b;cursor:default">${pend[0].nom[0].toUpperCase()}</div>`;
-      } else if (isInRange) {
-        cell = `<div style="height:20px;border-radius:3px;background:${s.color};opacity:0.15"></div>`;
-      } else {
-        cell = `<div style="height:20px;border-radius:3px;background:#f5f4f0"></div>`;
-      }
-      html += cell;
-    });
   });
-  html += `</div>`;
-  html += `<div style="display:flex;gap:10px;margin-top:6px;flex-wrap:wrap">
-    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#555"><span style="width:10px;height:10px;border-radius:2px;background:#1D9E75;display:inline-block"></span>Confirmé</div>
-    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#555"><span style="width:10px;height:10px;border-radius:2px;background:#fac775;display:inline-block"></span>En attente</div>
-    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#aaa"><span style="width:10px;height:10px;border-radius:2px;background:#e8e8e8;display:inline-block"></span>Étape active</div>
-  </div>`;
-  el.innerHTML = html;
+  return `<div class="sec"><div class="sttl">🗓 Planning indicatif</div>${h||'<div class="empty">Aucune étape</div>'}</div>`;
 }
 
-// ─── VIEW SWITCHING ───
+function disposFriendHTML() {
+  const app = dispos.filter(d=>d.status==='approved');
+  const pend = dispos.filter(d=>d.status==='pending').length;
+  const byV = {};
+  app.forEach(d => { if(!byV[d.ville]) byV[d.ville]=[]; byV[d.ville].push(d); });
+  const tc={pote:'#D4537E',surf:'#378ADD',fete:'#BA7517',depart:'#888'};
+  const bg={pote:'pb',surf:'bb',fete:'ob',depart:'gb'};
+  let h = '';
+  if(!app.length) h = `<div class="empty">Aucune dispo confirmée pour l'instant 👋</div>`;
+  else Object.entries(byV).forEach(([v,arr]) => {
+    const s=STAGES[v]; if(!s) return;
+    h += `<div class="dg-ttl">📍 ${s.label}</div>`;
+    arr.sort((a,b)=>(a.dateStart||a.date||'').localeCompare(b.dateStart||b.date||'')).forEach(d => {
+      const col=tc[s.type]||'#1D9E75', cls=bg[s.type]||'gb';
+      let dtxt = '';
+      if(d.dateStart&&d.dateEnd) {
+        const ovs=computeOverlaps(d.dateStart,d.dateEnd), ov=ovs.find(o=>o.id===v);
+        if(ov&&ov.days.length) { const days=ov.days.map(x=>parseInt(x.split('-')[2])); dtxt=`<span style="color:#27500a;font-weight:600"> · ensemble : ${days[0]}→${days[days.length-1]} juil.</span><br>dispo ${fmtD(d.dateStart)}→${fmtD(d.dateEnd)}`; }
+        else dtxt = ` · dispo ${fmtD(d.dateStart)}→${fmtD(d.dateEnd)}`;
+      } else if(d.date) dtxt = ` · ${fmtDate(d.date)}`;
+      h += `<div class="di ${cls}"><div class="dav" style="background:${col}">${d.nom[0].toUpperCase()}</div><div style="flex:1"><div class="dn">${esc(d.nom)}</div><div class="dd">📅${dtxt}${d.msg?'<br>💬 '+esc(d.msg):''}</div></div></div>`;
+    });
+  });
+  return `<div class="sec" id="dispos-friend"><div class="sttl">👥 Dispos confirmées <span class="cpill">${app.length}</span></div>${pend?`<p style="font-size:11px;color:#aaa;margin-bottom:8px">⏳ ${pend} en attente de validation</p>`:''}<div>${h}</div></div>`;
+}
+
+function calFriendHTML() {
+  return `<div class="sec"><div class="sttl">📆 Calendrier</div><div id="cal-friend" style="overflow-x:auto"></div></div>`;
+}
+
+function buildCalFriend() {
+  const el = document.getElementById('cal-friend'); if(!el) return;
+  const days = Array.from({length:13},(_,i)=>8+i);
+  const sl = Object.entries(STAGES).filter(([,s])=>s.type!=='depart');
+  const app = dispos.filter(d=>d.status==='approved');
+  let h = `<div style="display:grid;grid-template-columns:54px repeat(13,1fr);gap:2px;min-width:280px">`;
+  h += `<div></div>`+days.map(d=>`<div style="text-align:center;font-size:9px;color:#aaa;padding-bottom:3px">${d}</div>`).join('');
+  sl.forEach(([id,s]) => {
+    h += `<div style="font-size:9px;font-weight:600;color:#555;display:flex;align-items:center;gap:3px;padding-right:3px;overflow:hidden"><span style="width:6px;height:6px;border-radius:50%;background:${s.color};flex-shrink:0;display:inline-block"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.label.split('/')[0].trim()}</span></div>`;
+    days.forEach(d => {
+      const dateStr=`2026-07-${String(d).padStart(2,'0')}`;
+      const potes = app.filter(dp => {
+        if(dp.ville!==id) return false;
+        if(dp.dateStart&&dp.dateEnd) return dateStr>=dp.dateStart&&dateStr<=dp.dateEnd;
+        return dp.date===dateStr;
+      });
+      const inRange = stageInRange(s,d);
+      if(potes.length) {
+        const initials = potes.map(p=>p.nom[0].toUpperCase()).join('').slice(0,2);
+        h += `<div title="${potes.map(p=>p.nom).join(', ')}" style="height:20px;border-radius:3px;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;cursor:default">${initials}</div>`;
+      } else if(inRange) {
+        h += `<div style="height:20px;border-radius:3px;background:${s.color};opacity:0.18"></div>`;
+      } else {
+        h += `<div style="height:20px;border-radius:3px;background:#f0f0f0"></div>`;
+      }
+    });
+  });
+  h += `</div><div style="font-size:10px;color:#aaa;margin-top:5px">Juillet 2026 · initiales = pote confirmé</div>`;
+  el.innerHTML = h;
+}
+
+function legendHTML() {
+  return `<div class="sec"><div class="sttl">🗺 Légende</div><div class="leg">
+    <div class="li"><div class="ld" style="background:#E24B4A"></div>Bordeaux (départ / retour)</div>
+    <div class="li"><div class="ld" style="background:#1D9E75"></div>Chez un pote</div>
+    <div class="li"><div class="ld" style="background:#378ADD"></div>Étape surf</div>
+    <div class="li"><div class="ld" style="background:#BA7517"></div>Fêtes de Bayonne</div>
+    <div class="li"><div class="ld" style="background:#D4537E"></div>Pote confirmé</div>
+  </div></div>`;
+}
+
+// ── SUBMIT DISPO ──
+async function submitDispo() {
+  const nom = document.getElementById('inp-nom')?.value.trim();
+  const ds  = document.getElementById('inp-ds')?.value;
+  const de  = document.getElementById('inp-de')?.value;
+  const msg = document.getElementById('inp-msg')?.value.trim();
+  if(!nom) { toast('Remplis ton prénom !','err'); return; }
+  if(!ds||!de) { toast('Choisis tes dates !','err'); return; }
+  if(ds>de) { toast('La date de départ doit être après l\'arrivée !','err'); return; }
+  const ovs = computeOverlaps(ds,de);
+  const btn = document.getElementById('btn-sub');
+  btn.disabled=true; btn.textContent='Envoi...';
+  try {
+    const entries = ovs.length ? ovs.map(o=>({ville:o.id,ovS:o.days[0]||'',ovE:o.days[o.days.length-1]||''})) : [{ville:'',ovS:'',ovE:''}];
+    for(const e of entries) {
+      await apiPost({action:'addDispo',nom,msg,ville:e.ville,date:ds,dateStart:ds,dateEnd:de,overlapStart:e.ovS,overlapEnd:e.ovE,noOverlap:ovs.length===0?'1':''});
+    }
+    let msg2 = '';
+    if(!ovs.length) msg2 = '✓ Dispo envoyée ! Pas de créneau commun direct mais l\'admin verra ça.';
+    else if(ovs.length===1) { const d=ovs[0].days.map(x=>parseInt(x.split('-')[2])); msg2=`✓ Envoyé ! On se croise ${d.length===1?'le '+d[0]:'du '+d[0]+' au '+d[d.length-1]} juil. à ${ovs[0].label} 🤙`; }
+    else msg2 = `✓ Envoyé ! On se croise à ${ovs.map(o=>o.label).join(', ')} 🤙`;
+    toast(msg2,'ok');
+    ['inp-nom','inp-ds','inp-de','inp-msg'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    const pv=document.getElementById('ov-preview'); if(pv) pv.innerHTML='';
+    await fullSync();
+  } catch(e) { toast('Erreur de connexion.','err'); console.error(e); }
+  btn.disabled=false; btn.textContent='✓ Proposer ma dispo';
+}
+
+// ── ADMIN VIEW ──
+function renderAdmin() {
+  document.getElementById('view-admin').style.display = 'block';
+  const pending  = dispos.filter(d=>d.status==='pending');
+  const approved = dispos.filter(d=>d.status==='approved');
+  const poteNames = [...new Set(approved.map(d=>d.nom))];
+  const days = Array.from({length:13},(_,i)=>8+i);
+  const sl = Object.entries(STAGES).filter(([,s])=>s.type!=='depart');
+
+  // Stats
+  const stats = `<div class="stats-row">
+    <div class="stat-card"><div class="stat-lbl">Étapes</div><div class="stat-val">${Object.keys(STAGES).length}</div></div>
+    <div class="stat-card" style="background:var(--green-light)"><div class="stat-lbl" style="color:#3b6d11">Confirmées</div><div class="stat-val" style="color:var(--green)">${approved.length}</div></div>
+    <div class="stat-card" style="background:#fff8e6"><div class="stat-lbl" style="color:#854f0b">En attente</div><div class="stat-val" style="color:var(--orange)">${pending.length}</div></div>
+    <div class="stat-card" style="background:var(--blue-light)"><div class="stat-lbl" style="color:#185fa5">Potes</div><div class="stat-val" style="color:var(--blue)">${poteNames.length}</div></div>
+  </div>`;
+
+  // Calendar grid
+  let calH = `<div style="display:grid;grid-template-columns:54px repeat(13,1fr);gap:2px;overflow-x:auto;min-width:280px">`;
+  calH += `<div></div>`+days.map(d=>`<div style="text-align:center;font-size:9px;color:#aaa;padding-bottom:3px">${d}</div>`).join('');
+  sl.forEach(([id,s]) => {
+    calH += `<div style="font-size:9px;font-weight:600;color:#555;display:flex;align-items:center;gap:3px;padding-right:3px;overflow:hidden"><span style="width:6px;height:6px;border-radius:50%;background:${s.color};flex-shrink:0;display:inline-block"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.label.split('/')[0].trim()}</span></div>`;
+    days.forEach(d => {
+      const dateStr=`2026-07-${String(d).padStart(2,'0')}`;
+      const app2=approved.filter(dp=>{
+        if(dp.ville!==id) return false;
+        if(dp.dateStart&&dp.dateEnd) return dateStr>=dp.dateStart&&dateStr<=dp.dateEnd;
+        return dp.date===dateStr;
+      });
+      const pend2=pending.filter(dp=>{
+        if(dp.ville!==id) return false;
+        if(dp.dateStart&&dp.dateEnd) return dateStr>=dp.dateStart&&dateStr<=dp.dateEnd;
+        return dp.date===dateStr;
+      });
+      const inRange=stageInRange(s,d);
+      if(app2.length) {
+        const ini=app2.map(p=>p.nom[0].toUpperCase()).join('').slice(0,2);
+        calH+=`<div title="${app2.map(p=>p.nom).join(', ')}" style="height:20px;border-radius:3px;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;cursor:default;position:relative">${ini}${pend2.length?`<span style="position:absolute;top:-2px;right:-2px;width:6px;height:6px;border-radius:50%;background:#BA7517;border:1px solid #fff"></span>`:''}</div>`;
+      } else if(pend2.length) {
+        calH+=`<div title="${pend2.map(p=>p.nom+' (attente)').join(', ')}" style="height:20px;border-radius:3px;background:#fac775;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#854f0b;cursor:default">${pend2[0].nom[0].toUpperCase()}</div>`;
+      } else if(inRange) {
+        calH+=`<div style="height:20px;border-radius:3px;background:${s.color};opacity:0.18"></div>`;
+      } else {
+        calH+=`<div style="height:20px;border-radius:3px;background:#f0f0f0"></div>`;
+      }
+    });
+  });
+  calH+=`</div><div style="display:flex;gap:10px;margin-top:6px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#555"><span style="width:10px;height:10px;border-radius:2px;background:var(--green);display:inline-block"></span>Confirmé</div>
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#555"><span style="width:10px;height:10px;border-radius:2px;background:#fac775;display:inline-block"></span>En attente</div>
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#aaa"><span style="width:10px;height:10px;border-radius:2px;background:#ddd;display:inline-block"></span>Étape active</div>
+  </div>`;
+
+  // Pending section
+  let pendH = '';
+  if(!pending.length) pendH = `<div class="empty">Aucune dispo en attente 🎉</div>`;
+  else pending.sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||'')).forEach(d => {
+    const s=STAGES[d.ville];
+    const villeL = s?s.label:(d.ville||'Étape inconnue');
+    const dr = d.dateStart&&d.dateEnd ? `${fmtD(d.dateStart)} → ${fmtD(d.dateEnd)}` : fmtDate(d.date);
+    const ovInfo = d.overlapStart&&d.overlapEnd ? `<span class="poverlap"> · ensemble : ${fmtD(d.overlapStart)}→${fmtD(d.overlapEnd)}</span>` : '';
+    const noOv = d.noOverlap==='1' ? `<span class="pnoov"> ⚠️ Pas de créneau commun</span>` : '';
+    pendH += `<div class="pcard">
+      <div class="pav" style="background:${s?s.color:'#BA7517'}">${d.nom[0].toUpperCase()}</div>
+      <div style="flex:1">
+        <div class="pname">${esc(d.nom)}${noOv}</div>
+        <div class="pdetail">📍 ${villeL} · 📅 ${dr}${ovInfo}${d.msg?'<br>💬 '+esc(d.msg):''}</div>
+      </div>
+      <div class="pvbtns">
+        <button class="vok" onclick="validateDispo('${d.id}','approved')">✓ Valider</button>
+        <button class="vno" onclick="validateDispo('${d.id}','rejected')">✕ Refuser</button>
+      </div>
+    </div>`;
+  });
+
+  // Approved section
+  let appH = '';
+  if(!approved.length) appH = `<div class="empty">Aucune dispo confirmée</div>`;
+  else approved.sort((a,b)=>(a.dateStart||a.date||'').localeCompare(b.dateStart||b.date||'')).forEach(d => {
+    const s=STAGES[d.ville];
+    const col=s?s.color:'#1D9E75';
+    const dr=d.dateStart&&d.dateEnd?`${fmtD(d.dateStart)}→${fmtD(d.dateEnd)}`:fmtDate(d.date);
+    const ovI=d.overlapStart&&d.overlapEnd?` · ensemble ${fmtD(d.overlapStart)}→${fmtD(d.overlapEnd)}`:'';
+    appH+=`<div class="arow">
+      <div style="width:24px;height:24px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${d.nom[0].toUpperCase()}</div>
+      <div style="flex:1;font-size:12px;font-weight:600">${esc(d.nom)}</div>
+      <div style="font-size:11px;color:#555">${s?s.label:'?'} · ${dr}${ovI}</div>
+      <button class="adel" onclick="confirmDelDispo('${d.id}')">×</button>
+    </div>`;
+  });
+
+  // Etapes table
+  let etH = `<table class="etable"><thead><tr><th>Étape</th><th>Dates</th><th>Logement</th><th>Actions</th></tr></thead><tbody>`;
+  Object.entries(STAGES).forEach(([id,s]) => {
+    etH+=`<tr>
+      <td><span class="edot" style="background:${s.color}"></span>${s.label}</td>
+      <td style="color:var(--blue-dark);font-weight:500">${s.dates||'—'}</td>
+      <td style="color:#666">${s.dodo||'—'}</td>
+      <td><div class="eact">
+        <button class="ebtn-sm ebtn-edit" onclick="editEtape('${id}')">✏️ Modifier</button>
+        <button class="ebtn-sm ebtn-del" onclick="confirmDelEtape('${id}')">🗑</button>
+      </div></td>
+    </tr>`;
+  });
+  etH += `</tbody></table>`;
+
+  document.getElementById('adash').innerHTML = `
+    ${stats}
+    <div class="panel">
+      <div class="panel-hd"><div class="panel-title">📆 Calendrier — juillet 2026</div></div>
+      <div class="panel-body">${calH}</div>
+    </div>
+    <div class="panel">
+      <div class="panel-hd"><div class="panel-title">⏳ En attente de validation (${pending.length})</div></div>
+      <div class="panel-body">${pendH}</div>
+    </div>
+    <div class="panel">
+      <div class="panel-hd"><div class="panel-title">✅ Dispos confirmées (${approved.length})</div></div>
+      <div class="panel-body">${appH}</div>
+    </div>
+    <div class="panel">
+      <div class="panel-hd">
+        <div class="panel-title">🗺 Étapes du trip</div>
+        <button class="panel-add" onclick="showAddEtape()">+ Ajouter une étape</button>
+      </div>
+      <div class="panel-body" style="padding:0">${etH}</div>
+    </div>
+  `;
+}
+
+// ── VALIDATE / DELETE DISPOS ──
+async function validateDispo(id, status) {
+  try {
+    const r = await apiPost({action:'updateDispoStatus',id,status});
+    if(r.success) { toast(status==='approved'?'✓ Dispo validée et mise en ligne':'Dispo refusée','ok'); await fullSync(); }
+    else toast('Erreur lors de la mise à jour.','err');
+  } catch(e) { toast('Erreur de connexion.','err'); console.error(e); }
+}
+
+function confirmDelDispo(id) {
+  const d=dispos.find(x=>x.id===id); if(!d) return;
+  confirm2(`Supprimer la dispo de ${d.nom} ?`, `${d.nom} · ${STAGES[d.ville]?.label||d.ville||'?'} · ${fmtD(d.dateStart)||fmtDate(d.date)}`, async()=>{
+    const r=await apiPost({action:'deleteDispo',id});
+    if(r.success) { toast('Dispo supprimée','ok'); await fullSync(); }
+    else toast('Erreur.','err');
+  });
+}
+
+// ── ETAPES CRUD ──
+function showAddEtape() {
+  editingId=null;
+  document.getElementById('m-etape-ttl').textContent='Nouvelle étape';
+  ['e-id','e-label','e-lat','e-lng','e-surf','e-dodo','e-info','e-ds','e-de'].forEach(x=>{const el=document.getElementById(x);if(el)el.value='';});
+  document.getElementById('e-id').disabled=false;
+  document.getElementById('e-type').value='surf';
+  document.getElementById('e-err').classList.remove('show');
+  openM('m-etape');
+}
+
+function editEtape(id) {
+  const s=STAGES[id]; if(!s) return;
+  editingId=id;
+  document.getElementById('m-etape-ttl').textContent=`Modifier — ${s.label}`;
+  document.getElementById('e-id').value=id; document.getElementById('e-id').disabled=true;
+  document.getElementById('e-label').value=s.label;
+  document.getElementById('e-lat').value=s.lat; document.getElementById('e-lng').value=s.lng;
+  document.getElementById('e-type').value=s.type;
+  document.getElementById('e-surf').value=s.surf||'';
+  document.getElementById('e-dodo').value=s.dodo||'';
+  document.getElementById('e-info').value=s.info||'';
+  document.getElementById('e-ds').value=s.dateStart||'';
+  document.getElementById('e-de').value=s.dateEnd||'';
+  document.getElementById('e-err').classList.remove('show');
+  openM('m-etape');
+}
+
+async function saveEtape() {
+  const id=editingId||document.getElementById('e-id').value.trim().replace(/\s+/g,'_').toLowerCase();
+  const label=document.getElementById('e-label').value.trim();
+  const lat=parseFloat(document.getElementById('e-lat').value);
+  const lng=parseFloat(document.getElementById('e-lng').value);
+  if(!id||!label||isNaN(lat)||isNaN(lng)) { document.getElementById('e-err').classList.add('show'); return; }
+  const tc={surf:'#378ADD',pote:'#1D9E75',fete:'#BA7517',depart:'#E24B4A'};
+  const type=document.getElementById('e-type').value;
+  const ds=document.getElementById('e-ds').value;
+  const de=document.getElementById('e-de').value;
+  let datesLabel='';
+  if(ds&&de&&ds!==de) datesLabel=`${parseInt(ds.split('-')[2])}→${parseInt(de.split('-')[2])} juil.`;
+  else if(ds) datesLabel=`${parseInt(ds.split('-')[2])} juil.`;
+  try {
+    const r=await apiPost({action:'saveEtape',id,label,lat,lng,type,color:tc[type]||'#378ADD',surf:document.getElementById('e-surf').value.trim()||'—',dodo:document.getElementById('e-dodo').value.trim()||'—',info:document.getElementById('e-info').value.trim(),dates:datesLabel,dateStart:ds,dateEnd:de});
+    if(r.success) { closeM('m-etape'); toast(`✓ Étape "${label}" enregistrée`,'ok'); await fullSync(); }
+    else toast('Erreur lors de l\'enregistrement.','err');
+  } catch(e) { toast('Erreur de connexion.','err'); console.error(e); }
+}
+
+function confirmDelEtape(id) {
+  const s=STAGES[id];
+  confirm2(`Supprimer l'étape "${s.label}" ?`,'Les dispos liées resteront dans le Sheet mais ne seront plus affichées.',async()=>{
+    const r=await apiPost({action:'deleteEtape',id});
+    if(r.success) { toast('Étape supprimée','ok'); await fullSync(); }
+    else toast('Erreur.','err');
+  });
+}
+
+// ── VIEW SWITCH ──
 function setView(v) {
-  currentView = v;
-  document.getElementById('btn-friend').classList.toggle('active', v === 'friend');
-  document.getElementById('btn-admin').classList.toggle('active', v === 'admin');
-  document.getElementById('admin-bar').classList.toggle('show', v === 'admin');
-  renderSidebar();
+  view=v;
+  document.getElementById('vf').classList.toggle('on',v==='friend');
+  document.getElementById('va').classList.toggle('on',v==='admin');
+  if(v==='friend') {
+    document.getElementById('view-admin').style.display='none';
+    document.getElementById('view-friend').style.display='block';
+    document.getElementById('ebar').style.display='flex';
+    renderMap();
+  } else {
+    document.getElementById('view-friend').style.display='none';
+    document.getElementById('ebar').style.display='none';
+    document.getElementById('view-admin').style.display='block';
+    renderAdmin();
+  }
 }
 
 function tryAdmin() {
-  if (isAdmin) { setView('admin'); return; }
-  document.getElementById('pwd-input').value = '';
-  document.getElementById('pwd-error').classList.remove('show');
-  showModal('modal-login');
-  setTimeout(() => document.getElementById('pwd-input').focus(), 100);
+  if(isAdmin) { setView('admin'); return; }
+  document.getElementById('pwd').value='';
+  document.getElementById('pwd-err').classList.remove('show');
+  openM('m-login');
+  setTimeout(()=>document.getElementById('pwd').focus(),100);
 }
-
 function checkPwd() {
-  const v = document.getElementById('pwd-input').value;
-  if (v === ADMIN_PWD) {
-    isAdmin = true;
-    closeModal('modal-login');
-    setView('admin');
-    showToast('✓ Connecté en tant qu\'admin', 'success');
-  } else {
-    document.getElementById('pwd-error').classList.add('show');
-    document.getElementById('pwd-input').select();
-  }
+  if(document.getElementById('pwd').value===ADMIN_PWD) {
+    isAdmin=true; closeM('m-login'); setView('admin'); toast('✓ Connecté en admin','ok');
+  } else { document.getElementById('pwd-err').classList.add('show'); document.getElementById('pwd').select(); }
 }
 
-function logoutAdmin() { isAdmin = false; setView('friend'); showToast('Déconnecté', ''); }
-
-// ─── UTILS ───
-function showModal(id) { document.getElementById(id).classList.add('show'); }
-function closeModal(id) { document.getElementById(id).classList.remove('show'); }
-
-let confirmCallback = null;
-function showConfirm(title, msg, cb, btnLabel='Confirmer') {
-  document.getElementById('confirm-title').textContent = title;
-  document.getElementById('confirm-msg').textContent = msg;
-  document.getElementById('confirm-ok').textContent = btnLabel;
-  confirmCallback = cb;
-  document.getElementById('confirm-ok').onclick = () => { closeModal('modal-confirm'); if (confirmCallback) confirmCallback(); };
-  showModal('modal-confirm');
+// ── MODALS ──
+function openM(id) { document.getElementById(id).classList.add('show'); }
+function closeM(id) { document.getElementById(id).classList.remove('show'); }
+function confirm2(ttl,msg,cb) {
+  document.getElementById('c-ttl').textContent=ttl;
+  document.getElementById('c-msg').textContent=msg;
+  confirmCb=cb;
+  document.getElementById('c-ok').onclick=()=>{closeM('m-confirm');if(confirmCb)confirmCb();};
+  openM('m-confirm');
 }
+document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)closeM(el.id);}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')['m-login','m-etape','m-confirm'].forEach(id=>closeM(id));});
 
-function scrollToDispos() {
-  const el = document.getElementById('dispos-section');
-  if (el) el.scrollIntoView({ behavior: 'smooth' });
+// ── UTILS ──
+let toastT;
+function toast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=type?`show ${type}`:'show';
+  clearTimeout(toastT); toastT=setTimeout(()=>t.className='',3500);
 }
+function fmtDate(s){if(!s)return'';const[,m,d]=String(s).split('-');const M=['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];return parseInt(d)+' '+M[parseInt(m)-1];}
+function fmtD(iso){if(!iso)return'';const[,m,d]=iso.split('-');return parseInt(d)+' juil.';}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-function updateBadge() {
-  const n = dispos.filter(d => d.status === 'approved').length;
-  document.getElementById('badge-dispos').textContent = n + ' dispo' + (n > 1 ? 's' : '');
-}
-
-function formatDate(s) {
-  if (!s) return '';
-  const parts = String(s).split('-');
-  if (parts.length < 3) return s;
-  const [y,m,dd] = parts;
-  const M = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
-  return parseInt(dd) + ' ' + M[parseInt(m)-1];
-}
-
-function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-let toastTimer;
-function showToast(msg, type='') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = type ? `show ${type}` : 'show';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.className = '', 3500);
-}
-
-document.querySelectorAll('.modal-overlay').forEach(el => {
-  el.addEventListener('click', e => { if (e.target === el) closeModal(el.id); });
-});
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') ['modal-login','modal-etape','modal-confirm'].forEach(id => closeModal(id));
-});
-
-// ─── INIT ───
-(async function init() {
+// ── INIT ──
+(async function(){
   await fullSync(true);
-  setInterval(() => fullSync(false), POLL_INTERVAL);
+  renderFriend();
+  setInterval(()=>fullSync(),POLL);
 })();
 </script>
 </body>
